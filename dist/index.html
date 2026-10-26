@@ -4,27 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#0d1117">
+    <meta name="theme-color" content="#181818">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Antigravity Remote</title>
     <style>
         :root {
-            --bg-color: #0d1117;
-            --surface: #161b22;
-            --surface-card: #21262d;
+            --bg-color: #121212;
+            --surface: #181818;
+            --surface-hover: #222222;
+            --surface-card: #1e1e1e;
             --primary: #58a6ff;
-            --primary-hover: #388bfd;
-            --text-main: #f0f6fc;
-            --text-muted: #8b949e;
+            --text-main: #e6e6e6;
+            --text-muted: #888888;
+            --text-dim: #5c5c5c;
             --user-bubble: #1f6feb;
-            --bot-bubble: #161b22;
-            --accent-green: #238636;
+            --bot-bubble: #1e1e1e;
             --accent-green-bright: #3fb950;
             --accent-red: #da3633;
-            --border: #30363d;
-            --folder-bg: #1c2128;
-            --badge-bg: #30363d;
+            --border: #2a2a2a;
+            --sidebar-bg: #181818;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         html, body {
@@ -55,7 +54,7 @@
         .header-left {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             overflow: hidden;
             flex: 1;
         }
@@ -78,7 +77,7 @@
         .header-project-badge {
             font-size: 0.72rem;
             font-weight: 700;
-            color: var(--primary);
+            color: #8da4be;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             display: flex;
@@ -94,7 +93,7 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            color: var(--text-main);
+            color: #ffffff;
         }
         .header-right {
             display: flex;
@@ -110,7 +109,7 @@
             box-shadow: 0 0 8px var(--accent-green-bright);
         }
 
-        /* Контейнер чата */
+        /* Чат */
         .chat-container {
             flex: 1;
             overflow-y: auto;
@@ -150,12 +149,10 @@
             margin-bottom: 4px;
         }
 
-        /* Фиксированный низ */
+        /* Нижняя панель */
         .fixed-bottom {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            bottom: 0; left: 0; right: 0;
             background-color: var(--surface);
             border-top: 1px solid var(--border);
             z-index: 100;
@@ -163,8 +160,6 @@
             flex-direction: column;
             padding-bottom: env(safe-area-inset-bottom, 8px);
         }
-
-        /* Быстрые действия */
         .quick-actions {
             display: flex;
             gap: 8px;
@@ -172,7 +167,7 @@
             overflow-x: auto;
             white-space: nowrap;
             -webkit-overflow-scrolling: touch;
-            border-bottom: 1px solid #222731;
+            border-bottom: 1px solid #202020;
         }
         .action-chip {
             background-color: var(--surface-card);
@@ -190,8 +185,6 @@
             border-color: var(--accent-green-bright);
             color: #7ee787;
         }
-
-        /* Поле ввода */
         .input-bar {
             padding: 10px 12px;
             display: flex;
@@ -213,13 +206,13 @@
             outline: none;
             font-family: inherit;
         }
-        textarea:focus { border-color: var(--primary); }
+        textarea:focus { border-color: #404040; }
         .btn-round {
             width: 48px;
             height: 48px;
             border-radius: 50%;
             border: none;
-            background-color: var(--primary);
+            background-color: #2b6cb0;
             color: #fff;
             display: flex;
             align-items: center;
@@ -247,11 +240,11 @@
             100% { transform: scale(1); }
         }
 
-        /* Боковое меню (Drawer) с Проектами */
+        /* ТОЧНАЯ КОПИЯ БОКОВОЙ ПАНЕЛИ ANTIGRAVITY */
         .drawer-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.75);
             backdrop-filter: blur(4px);
             z-index: 200;
             opacity: 0;
@@ -262,9 +255,9 @@
         .drawer {
             position: fixed;
             top: 0; left: 0; bottom: 0;
-            width: 86%;
+            width: 88%;
             max-width: 360px;
-            background-color: var(--surface);
+            background-color: var(--sidebar-bg);
             z-index: 210;
             transform: translateX(-100%);
             transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -273,134 +266,154 @@
             border-right: 1px solid var(--border);
         }
         .drawer.open { transform: translateX(0); }
-        
-        .drawer-header {
-            padding: 16px;
-            border-bottom: 1px solid var(--border);
+
+        .sidebar-top {
+            padding: 14px 14px 10px 14px;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
+            gap: 8px;
+            border-bottom: 1px solid var(--border);
         }
-        .drawer-header-title {
-            font-weight: 700;
-            font-size: 1.15rem;
+        .btn-new-convo {
+            background-color: #242424;
+            color: #ffffff;
+            border: 1px solid #333333;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.95rem;
+            font-weight: 500;
             display: flex;
             align-items: center;
             gap: 8px;
-        }
-        .drawer-close {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            font-size: 1.3rem;
             cursor: pointer;
-            padding: 4px;
+            width: 100%;
+            text-align: left;
+        }
+        .btn-new-convo:active { background-color: #2d2d2d; }
+
+        .sidebar-nav-item {
+            padding: 8px 10px;
+            color: #b0b0b0;
+            font-size: 0.92rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            border-radius: 6px;
+        }
+        .sidebar-nav-item:hover { background-color: rgba(255, 255, 255, 0.04); }
+
+        /* Заголовок Projects */
+        .projects-header-row {
+            padding: 12px 14px 6px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
         }
 
-        /* Список проектов (Аккордеон) */
         .projects-scroll {
             flex: 1;
             overflow-y: auto;
-            padding: 10px;
+            padding: 0 8px 20px 8px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 2px;
         }
-        .project-group {
-            background-color: var(--folder-bg);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            overflow: hidden;
-        }
-        .project-header {
-            padding: 12px 14px;
+
+        /* Проект в стиле Antigravity */
+        .project-item {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            cursor: pointer;
-            user-select: none;
-            background-color: var(--surface-card);
-            border-bottom: 1px solid transparent;
+            flex-direction: column;
         }
-        .project-header.open {
-            border-bottom-color: var(--border);
-        }
-        .project-title-cluster {
+        .project-row {
+            padding: 8px 10px;
+            border-radius: 6px;
             display: flex;
             align-items: center;
             gap: 8px;
-            overflow: hidden;
-            flex: 1;
-        }
-        .project-icon { font-size: 1.1rem; }
-        .project-name {
-            font-weight: 700;
-            font-size: 0.96rem;
-            color: var(--text-main);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .project-badge {
-            background-color: var(--badge-bg);
-            color: var(--text-muted);
-            font-size: 0.76rem;
-            padding: 2px 7px;
-            border-radius: 10px;
-            font-weight: 600;
-        }
-        .project-arrow {
-            color: var(--text-muted);
-            font-size: 0.8rem;
-            transition: transform 0.2s;
-            margin-left: 6px;
-        }
-        .project-header.open .project-arrow {
-            transform: rotate(90deg);
-        }
-
-        .project-convs {
-            display: none;
-            padding: 6px;
-            flex-direction: column;
-            gap: 4px;
-        }
-        .project-convs.open {
-            display: flex;
-        }
-
-        .conv-item {
-            padding: 10px 12px;
-            border-radius: 8px;
-            background-color: transparent;
-            border: 1px solid transparent;
             cursor: pointer;
+            color: #d1d1d1;
+            font-size: 0.94rem;
+            user-select: none;
+        }
+        .project-row:hover, .project-row:active {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+        .project-folder-icon {
+            color: #8c8c8c;
+            font-size: 1rem;
             display: flex;
-            flex-direction: column;
-            gap: 3px;
+            align-items: center;
         }
-        .conv-item:hover, .conv-item:active {
-            background-color: rgba(255, 255, 255, 0.04);
-        }
-        .conv-item.active {
-            background-color: rgba(88, 166, 255, 0.15);
-            border-color: var(--primary);
-        }
-        .conv-title {
-            font-size: 0.92rem;
+        .project-title {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
             font-weight: 500;
-            color: var(--text-main);
+        }
+
+        /* Список диалогов внутри проекта */
+        .convs-sublist {
+            display: none;
+            flex-direction: column;
+            padding-left: 24px;
+            gap: 1px;
+            margin-top: 2px;
+            margin-bottom: 4px;
+        }
+        .convs-sublist.open {
+            display: flex;
+        }
+
+        .conv-subitem {
+            padding: 7px 10px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            cursor: pointer;
+            color: #adadad;
+            font-size: 0.88rem;
+        }
+        .conv-subitem:hover, .conv-subitem:active {
+            background-color: rgba(255, 255, 255, 0.04);
+            color: #ffffff;
+        }
+        .conv-subitem.active {
+            background-color: rgba(88, 166, 255, 0.14);
+            color: #ffffff;
+            font-weight: 500;
+        }
+        .conv-subitem-title {
+            flex: 1;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .conv-item.active .conv-title {
-            color: #ffffff;
-            font-weight: 700;
+        .conv-subitem-time {
+            color: var(--text-dim);
+            font-size: 0.78rem;
+            flex-shrink: 0;
         }
-        .conv-time {
-            font-size: 0.74rem;
+        .conv-subitem.active .conv-subitem-time {
+            color: #58a6ff;
+        }
+
+        .sidebar-footer {
+            padding: 12px 14px;
+            border-top: 1px solid var(--border);
             color: var(--text-muted);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -408,9 +421,9 @@
     <!-- Шапка -->
     <header>
         <div class="header-left">
-            <button class="btn-menu" onclick="toggleDrawer()" title="Меню проектов и диалогов">☰</button>
+            <button class="btn-menu" onclick="toggleDrawer()" title="Меню Antigravity">☰</button>
             <div class="header-title-container">
-                <div class="header-project-badge" id="headerProject">📁 Проекты</div>
+                <div class="header-project-badge" id="headerProject">📁 Projects</div>
                 <div class="header-title" id="headerTitle">Antigravity Remote</div>
             </div>
         </div>
@@ -424,11 +437,11 @@
     <div class="chat-container" id="chat">
         <div class="msg assistant">
             <div class="msg-role">Система</div>
-            Подключено к сессиям Antigravity на ПК. Выберите проект и диалог в боковом меню ☰ или отправьте команду.
+            Подключено к Antigravity на ПК. Выберите проект и диалог в боковом меню ☰ или отправьте команду.
         </div>
     </div>
 
-    <!-- Фиксированный низ: Быстрые кнопки + Поле ввода + Микрофон -->
+    <!-- Фиксированный низ -->
     <div class="fixed-bottom">
         <div class="quick-actions">
             <button class="action-chip proceed" onclick="sendAction('proceed')">✓ Одобрить (Proceed)</button>
@@ -443,23 +456,45 @@
         </div>
     </div>
 
-    <!-- Боковое меню проектов (Drawer) -->
+    <!-- Боковое меню (ТОЧНАЯ КОПИЯ ANTIGRAVITY) -->
     <div class="drawer-overlay" id="overlay" onclick="toggleDrawer()"></div>
     <div class="drawer" id="drawer">
-        <div class="drawer-header">
-            <div class="drawer-header-title">
-                <span>📁 Проекты Antigravity</span>
+        <div class="sidebar-top">
+            <button class="btn-new-convo" onclick="quickSend('/new')">
+                <span style="font-size: 1.1rem; line-height: 1;">+</span>
+                <span>New Conversation</span>
+            </button>
+            <div class="sidebar-nav-item" onclick="toggleDrawer()">
+                <span>🕒</span>
+                <span>Conversation History</span>
             </div>
-            <button class="drawer-close" onclick="toggleDrawer()">✕</button>
+            <div class="sidebar-nav-item" onclick="quickSend('/automations')">
+                <span>⏱️</span>
+                <span>Automations</span>
+            </div>
+            <div class="sidebar-nav-item" onclick="quickSend('/customizations')">
+                <span>🖨️</span>
+                <span>Customizations</span>
+            </div>
         </div>
+
+        <div class="projects-header-row">
+            <span>Projects</span>
+            <span style="font-size: 1rem; opacity: 0.7;">📁</span>
+        </div>
+
         <div class="projects-scroll" id="projectsList">
             <div style="padding: 16px; color: var(--text-muted); text-align: center;">Загрузка проектов...</div>
+        </div>
+
+        <div class="sidebar-footer" onclick="toggleDrawer()">
+            <span>⚙️</span>
+            <span>Settings</span>
         </div>
     </div>
 
     <script>
-        // Поддержка работы как в браузере, так и внутри автономного APK
-        const API_BASE = window.location.origin.includes('capacitor://') || window.location.origin.includes('localhost') && !window.location.port
+        const API_BASE = window.location.origin.includes('capacitor://') || (window.location.origin.includes('localhost') && !window.location.port)
             ? 'http://192.168.0.106:8080'
             : '';
 
@@ -506,51 +541,44 @@
                 list.innerHTML = '';
 
                 data.projects.forEach((proj, idx) => {
-                    const group = document.createElement('div');
-                    group.className = 'project-group';
+                    const item = document.createElement('div');
+                    item.className = 'project-item';
 
-                    // Если проект содержит активный диалог или был открыт — держим открытым
+                    // Если содержит активный диалог или был открыт ранее, открываем
                     const hasActive = proj.conversations.some(c => c.id === activeConvId);
-                    if (hasActive || openProjects.has(proj.name) || (openProjects.size === 0 && idx === 0)) {
+                    if (hasActive || (openProjects.size === 0 && idx === 0)) {
                         openProjects.add(proj.name);
                     }
                     const isOpen = openProjects.has(proj.name);
 
-                    const header = document.createElement('div');
-                    header.className = 'project-header' + (isOpen ? ' open' : '');
-                    header.onclick = () => toggleProject(proj.name);
-                    
-                    const icon = proj.name === 'Общие диалоги' ? '💬' : '📁';
-                    header.innerHTML = `
-                        <div class="project-title-cluster">
-                            <span class="project-icon">${icon}</span>
-                            <span class="project-name">${escapeHtml(proj.name)}</span>
-                            <span class="project-badge">${proj.conversations.length}</span>
-                        </div>
-                        <span class="project-arrow">▶</span>
+                    const row = document.createElement('div');
+                    row.className = 'project-row';
+                    row.onclick = () => toggleProject(proj.name);
+                    row.innerHTML = `
+                        <span class="project-folder-icon">📁</span>
+                        <span class="project-title">${escapeHtml(proj.name)}</span>
                     `;
 
-                    const convsDiv = document.createElement('div');
-                    convsDiv.className = 'project-convs' + (isOpen ? ' open' : '');
-                    convsDiv.id = 'proj-' + btoa(unescape(encodeURIComponent(proj.name))).replace(/=/g, '');
+                    const sublist = document.createElement('div');
+                    sublist.className = 'convs-sublist' + (isOpen ? ' open' : '');
 
                     proj.conversations.forEach(c => {
-                        const item = document.createElement('div');
-                        item.className = 'conv-item' + (c.id === activeConvId ? ' active' : '');
-                        item.onclick = (e) => {
+                        const convRow = document.createElement('div');
+                        convRow.className = 'conv-subitem' + (c.id === activeConvId ? ' active' : '');
+                        convRow.onclick = (e) => {
                             e.stopPropagation();
                             switchConversation(c.id, c.title, proj.name);
                         };
-                        item.innerHTML = `
-                            <div class="conv-title">${escapeHtml(c.title)}</div>
-                            <div class="conv-time">${c.time}</div>
+                        convRow.innerHTML = `
+                            <span class="conv-subitem-title">${escapeHtml(c.title)}</span>
+                            <span class="conv-subitem-time">${c.time}</span>
                         `;
-                        convsDiv.appendChild(item);
+                        sublist.appendChild(convRow);
                     });
 
-                    group.appendChild(header);
-                    group.appendChild(convsDiv);
-                    list.appendChild(group);
+                    item.appendChild(row);
+                    item.appendChild(sublist);
+                    list.appendChild(item);
                 });
             } catch (e) {
                 console.error("Error loading projects", e);
@@ -586,7 +614,6 @@
                 if (!res.ok) return;
                 const data = await res.json();
                 
-                // Обновляем шапку
                 if (data.active_info) {
                     document.getElementById('headerProject').textContent = '📁 ' + data.active_info.project;
                     const t = data.active_info.title;
