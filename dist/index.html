@@ -828,14 +828,6 @@
                     </div>
                 </div>
                 <div class="composer-right">
-                    <button class="btn-icon-action" id="micBtn" onclick="toggleVoice()" title="Голосовой ввод">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                            <line x1="12" y1="19" x2="12" y2="23"></line>
-                            <line x1="8" y1="23" x2="16" y2="23"></line>
-                        </svg>
-                    </button>
                     <button class="btn-send-pill" onclick="sendPrompt()" title="Отправить">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -903,8 +895,7 @@
     <script>
         const API_BASE = '';
         let lastMsgCount = 0;
-        let isRecording = false;
-        let recognition = null;
+
         let activeConvId = null;
         let openProjects = new Set();
         let selectedModel = localStorage.getItem('ag_model') || 'Gemini 3.8 Flash Medium';
@@ -1278,50 +1269,7 @@
             } catch (e) {}
         }
 
-        function toggleVoice() {
-            const btn = document.getElementById('micBtn');
-            const input = document.getElementById('promptInput');
 
-            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                alert('Используйте микрофон на экранной клавиатуре.');
-                return;
-            }
-
-            if (isRecording) {
-                if (recognition) recognition.stop();
-                isRecording = false;
-                btn.classList.remove('recording');
-                return;
-            }
-
-            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRec();
-            recognition.lang = 'ru-RU';
-            recognition.interimResults = false;
-
-            recognition.onstart = function() {
-                isRecording = true;
-                btn.classList.add('recording');
-            };
-
-            recognition.onresult = function(event) {
-                const speechResult = event.results[0][0].transcript;
-                input.value += (input.value ? ' ' : '') + speechResult;
-                autoGrow(input);
-            };
-
-            recognition.onerror = function() {
-                isRecording = false;
-                btn.classList.remove('recording');
-            };
-
-            recognition.onend = function() {
-                isRecording = false;
-                btn.classList.remove('recording');
-            };
-
-            recognition.start();
-        }
 
         document.getElementById('currentModelLabel').textContent = selectedModel;
         setInterval(fetchTranscript, 1500);
