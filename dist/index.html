@@ -494,9 +494,7 @@
     </div>
 
     <script>
-        const API_BASE = window.location.origin.includes('capacitor://') || (window.location.origin.includes('localhost') && !window.location.port)
-            ? 'http://192.168.0.106:8080'
-            : '';
+        const API_BASE = '';
 
         let lastMsgCount = 0;
         let isRecording = false;
@@ -582,6 +580,10 @@
                 });
             } catch (e) {
                 console.error("Error loading projects", e);
+                const list = document.getElementById('projectsList');
+                if (list) {
+                    list.innerHTML = '<div style="padding: 16px; color: #ff7b72; text-align: center;">Ошибка загрузки: ' + escapeHtml(e.message || String(e)) + '</div>';
+                }
             }
         }
 
