@@ -243,6 +243,81 @@
             padding-bottom: env(safe-area-inset-bottom, 12px);
         }
 
+        /* Очередь команд в стиле Antigravity */
+        .queue-panel {
+            background-color: #1a1a1a;
+            border: 1px solid #2d2d2d;
+            border-radius: 8px;
+            padding: 6px 10px;
+            margin-bottom: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .queue-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11.5px;
+            color: #858585;
+            font-weight: 500;
+        }
+        .queue-badge {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #7aa2f7;
+        }
+        .queue-items {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+        .queue-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #212121;
+            border: 1px solid #2b2b2b;
+            border-radius: 6px;
+            padding: 4px 8px;
+            gap: 8px;
+            font-size: 12px;
+        }
+        .queue-item-text {
+            color: #d8d8d8;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+        }
+        .queue-item-status {
+            font-size: 11px;
+            color: #707070;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .queue-item-status.sending {
+            color: #388bfd;
+        }
+        .btn-cancel-queue {
+            background: none;
+            border: none;
+            color: #707070;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        .btn-cancel-queue:active { color: #f85149; }
+
         /* Быстрые действия */
         .quick-actions {
             display: flex;
@@ -706,6 +781,17 @@
 
     <!-- Фиксированный низ: карточка Antigravity -->
     <div class="fixed-bottom">
+        <div id="queuePanel" class="queue-panel" style="display: none;">
+            <div class="queue-panel-header">
+                <span class="queue-badge">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <span>В очереди (<span id="queueCount">0</span>)</span>
+                </span>
+                <span style="font-size: 10.5px; color: #606060;">Будет выполнено по порядку</span>
+            </div>
+            <div class="queue-items" id="queueItems"></div>
+        </div>
+
         <div class="quick-actions">
             <button class="action-chip proceed" onclick="sendAction('proceed')">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -952,8 +1038,53 @@
                     renderMessages(msgs);
                     lastMsgCount = msgs.length;
                 }
+
+                renderQueue(data.queue || []);
             } catch (e) {
                 console.error("Fetch error", e);
+            }
+        }
+
+        function renderQueue(queue) {
+            const panel = document.getElementById('queuePanel');
+            const list = document.getElementById('queueItems');
+            const countEl = document.getElementById('queueCount');
+            
+            if (!queue || queue.length === 0) {
+                panel.style.display = 'none';
+                list.innerHTML = '';
+                return;
+            }
+
+            panel.style.display = 'flex';
+            countEl.textContent = queue.length;
+            list.innerHTML = '';
+
+            queue.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'queue-item';
+                const isSending = item.status === 'sending';
+                const statusLabel = isSending ? 'Отправка...' : 'В очереди';
+                row.innerHTML = `
+                    <span class="queue-item-text">${escapeHtml(item.prompt)}</span>
+                    <span class="queue-item-status ${isSending ? 'sending' : ''}">${statusLabel}</span>
+                    <button class="btn-cancel-queue" onclick="cancelQueueItem('${item.id}')" title="Отменить">✕</button>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        async function cancelQueueItem(id) {
+            try {
+                const res = await fetch(API_BASE + '/api/cancel_queue', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id })
+                });
+                const data = await res.json();
+                renderQueue(data.queue || []);
+            } catch (e) {
+                console.error("Cancel queue error", e);
             }
         }
 
@@ -1031,11 +1162,15 @@
             chat.scrollTop = chat.scrollHeight;
 
             try {
-                await fetch(API_BASE + '/api/send', {
+                const res = await fetch(API_BASE + '/api/send', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt: text, model: selectedModel })
                 });
+                const data = await res.json();
+                if (data.queue) {
+                    renderQueue(data.queue);
+                }
             } catch (e) {
                 alert('Ошибка отправки: ' + e);
             }
