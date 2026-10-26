@@ -630,6 +630,19 @@
             color: #ffffff;
             font-weight: 400;
         }
+        .conv-item.standalone {
+            padding: 6px 10px;
+            color: #b0b0b0;
+            font-size: 13px;
+        }
+        .conv-item.standalone:active {
+            color: #ffffff;
+        }
+        .conv-item.standalone.active {
+            background-color: var(--surface-active);
+            color: #ffffff;
+            font-weight: 500;
+        }
         .conv-item-title {
             flex: 1;
             white-space: nowrap;
@@ -975,6 +988,27 @@
                     group.appendChild(sublist);
                     list.appendChild(group);
                 });
+
+                // Standalone диалоги без проектов (прямо под проектами)
+                if (data.standalone && data.standalone.length > 0) {
+                    const divider = document.createElement('div');
+                    divider.style.cssText = 'height: 1px; background: rgba(255, 255, 255, 0.08); margin: 8px 6px;';
+                    list.appendChild(divider);
+
+                    data.standalone.forEach(c => {
+                        const convRow = document.createElement('div');
+                        convRow.className = 'conv-item standalone' + (c.id === activeConvId ? ' active' : '');
+                        convRow.onclick = (e) => {
+                            e.stopPropagation();
+                            switchConversation(c.id, c.title, '');
+                        };
+                        convRow.innerHTML = `
+                            <span class="conv-item-title">${escapeHtml(c.title)}</span>
+                            <span class="conv-item-time">${c.time}</span>
+                        `;
+                        list.appendChild(convRow);
+                    });
+                }
             } catch (e) {
                 console.error("Error loading projects", e);
                 const list = document.getElementById('projectsList');
@@ -1009,17 +1043,25 @@
 
         function updateHeaderBreadcrumb(proj, title) {
             const folderEl = document.getElementById('headerProject');
+            const dividerEl = document.querySelector('.breadcrumb-divider');
             if (folderEl) {
-                folderEl.innerHTML = `
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                    <span>${escapeHtml(proj)}</span>
-                `;
+                if (proj && proj.trim()) {
+                    folderEl.style.display = 'flex';
+                    if (dividerEl) dividerEl.style.display = 'inline';
+                    folderEl.innerHTML = `
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        <span>${escapeHtml(proj)}</span>
+                    `;
+                } else {
+                    folderEl.style.display = 'none';
+                    if (dividerEl) dividerEl.style.display = 'none';
+                }
             }
             const titleEl = document.getElementById('headerTitle');
             if (titleEl) {
-                titleEl.textContent = title.length > 28 ? title.substring(0, 26) + '...' : title;
+                titleEl.textContent = title.length > 32 ? title.substring(0, 30) + '...' : title;
             }
         }
 
