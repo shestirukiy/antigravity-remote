@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0d1117">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Antigravity Remote</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --surface: #161b22;
+            --surface-card: #21262d;
+            --primary: #58a6ff;
+            --primary-hover: #388bfd;
+            --text-main: #f0f6fc;
+            --text-muted: #8b949e;
+            --user-bubble: #1f6feb;
+            --bot-bubble: #161b22;
+            --accent-green: #238636;
+            --accent-green-bright: #3fb950;
+            --accent-red: #da3633;
+            --border: #30363d;
+            --folder-bg: #1c2128;
+            --badge-bg: #30363d;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        html, body {
+            height: 100%;
+            height: 100dvh;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Шапка */
+        header {
+            background-color: var(--surface);
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            z-index: 10;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            overflow: hidden;
+            flex: 1;
+        }
+        .btn-menu {
+            background: none;
+            border: none;
+            color: var(--text-main);
+            font-size: 1.45rem;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .header-title-container {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .header-project-badge {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .header-title {
+            font-weight: 600;
+            font-size: 0.98rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text-main);
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--accent-green-bright);
+            box-shadow: 0 0 8px var(--accent-green-bright);
+        }
+
+        /* Контейнер чата */
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            padding-bottom: 145px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .msg {
+            max-width: 92%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            font-size: 1.05rem;
+        }
+        .msg.user {
+            align-self: flex-end;
+            background-color: var(--user-bubble);
+            color: #ffffff;
+            border-bottom-right-radius: 4px;
+        }
+        .msg.assistant {
+            align-self: flex-start;
+            background-color: var(--bot-bubble);
+            border: 1px solid var(--border);
+            border-bottom-left-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .msg-role {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        /* Фиксированный низ */
+        .fixed-bottom {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: var(--surface);
+            border-top: 1px solid var(--border);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: env(safe-area-inset-bottom, 8px);
+        }
+
+        /* Быстрые действия */
+        .quick-actions {
+            display: flex;
+            gap: 8px;
+            padding: 8px 12px;
+            overflow-x: auto;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+            border-bottom: 1px solid #222731;
+        }
+        .action-chip {
+            background-color: var(--surface-card);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 6px 14px;
+            border-radius: 18px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .action-chip.proceed {
+            background-color: #1b4728;
+            border-color: var(--accent-green-bright);
+            color: #7ee787;
+        }
+
+        /* Поле ввода */
+        .input-bar {
+            padding: 10px 12px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        textarea {
+            flex: 1;
+            background-color: var(--surface-card);
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 12px 16px;
+            border-radius: 22px;
+            resize: none;
+            max-height: 100px;
+            min-height: 48px;
+            font-size: 1.05rem;
+            line-height: 1.35;
+            outline: none;
+            font-family: inherit;
+        }
+        textarea:focus { border-color: var(--primary); }
+        .btn-round {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: none;
+            background-color: var(--primary);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            font-size: 1.25rem;
+            transition: transform 0.15s;
+        }
+        .btn-round:active { transform: scale(0.92); }
+        .btn-voice {
+            background-color: var(--surface-card);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            font-size: 1.3rem;
+        }
+        .btn-voice.recording {
+            background-color: var(--accent-red);
+            color: white;
+            animation: pulse 1.2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.12); }
+            100% { transform: scale(1); }
+        }
+
+        /* Боковое меню (Drawer) с Проектами */
+        .drawer-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+        .drawer-overlay.open { opacity: 1; pointer-events: auto; }
+        .drawer {
+            position: fixed;
+            top: 0; left: 0; bottom: 0;
+            width: 86%;
+            max-width: 360px;
+            background-color: var(--surface);
+            z-index: 210;
+            transform: translateX(-100%);
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border);
+        }
+        .drawer.open { transform: translateX(0); }
+        
+        .drawer-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .drawer-header-title {
+            font-weight: 700;
+            font-size: 1.15rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .drawer-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.3rem;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        /* Список проектов (Аккордеон) */
+        .projects-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .project-group {
+            background-color: var(--folder-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .project-header {
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+            background-color: var(--surface-card);
+            border-bottom: 1px solid transparent;
+        }
+        .project-header.open {
+            border-bottom-color: var(--border);
+        }
+        .project-title-cluster {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow: hidden;
+            flex: 1;
+        }
+        .project-icon { font-size: 1.1rem; }
+        .project-name {
+            font-weight: 700;
+            font-size: 0.96rem;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .project-badge {
+            background-color: var(--badge-bg);
+            color: var(--text-muted);
+            font-size: 0.76rem;
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+        .project-arrow {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            transition: transform 0.2s;
+            margin-left: 6px;
+        }
+        .project-header.open .project-arrow {
+            transform: rotate(90deg);
+        }
+
+        .project-convs {
+            display: none;
+            padding: 6px;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .project-convs.open {
+            display: flex;
+        }
+
+        .conv-item {
+            padding: 10px 12px;
+            border-radius: 8px;
+            background-color: transparent;
+            border: 1px solid transparent;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .conv-item:hover, .conv-item:active {
+            background-color: rgba(255, 255, 255, 0.04);
+        }
+        .conv-item.active {
+            background-color: rgba(88, 166, 255, 0.15);
+            border-color: var(--primary);
+        }
+        .conv-title {
+            font-size: 0.92rem;
+            font-weight: 500;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .conv-item.active .conv-title {
+            color: #ffffff;
+            font-weight: 700;
+        }
+        .conv-time {
+            font-size: 0.74rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <!-- Шапка -->
+    <header>
+        <div class="header-left">
+            <button class="btn-menu" onclick="toggleDrawer()" title="Меню проектов и диалогов">☰</button>
+            <div class="header-title-container">
+                <div class="header-project-badge" id="headerProject">📁 Проекты</div>
+                <div class="header-title" id="headerTitle">Antigravity Remote</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="status-dot"></div>
+            <div style="font-size: 0.78rem; color: var(--text-muted);">Wi-Fi</div>
+        </div>
+    </header>
+
+    <!-- Сообщения чата -->
+    <div class="chat-container" id="chat">
+        <div class="msg assistant">
+            <div class="msg-role">Система</div>
+            Подключено к сессиям Antigravity на ПК. Выберите проект и диалог в боковом меню ☰ или отправьте команду.
+        </div>
+    </div>
+
+    <!-- Фиксированный низ: Быстрые кнопки + Поле ввода + Микрофон -->
+    <div class="fixed-bottom">
+        <div class="quick-actions">
+            <button class="action-chip proceed" onclick="sendAction('proceed')">✓ Одобрить (Proceed)</button>
+            <button class="action-chip" onclick="quickSend('Покажи текущий статус задачи')">Статус задачи</button>
+            <button class="action-chip" onclick="quickSend('Продолжай')">Продолжай</button>
+            <button class="action-chip" onclick="sendAction('escape')">❌ Отмена</button>
+        </div>
+        <div class="input-bar">
+            <button class="btn-round btn-voice" id="micBtn" onclick="toggleVoice()" title="Голосовой ввод">🎤</button>
+            <textarea id="promptInput" rows="1" placeholder="Инструкция для Antigravity..." oninput="autoGrow(this)" onkeydown="checkEnter(event)"></textarea>
+            <button class="btn-round" onclick="sendPrompt()" title="Отправить">➤</button>
+        </div>
+    </div>
+
+    <!-- Боковое меню проектов (Drawer) -->
+    <div class="drawer-overlay" id="overlay" onclick="toggleDrawer()"></div>
+    <div class="drawer" id="drawer">
+        <div class="drawer-header">
+            <div class="drawer-header-title">
+                <span>📁 Проекты Antigravity</span>
+            </div>
+            <button class="drawer-close" onclick="toggleDrawer()">✕</button>
+        </div>
+        <div class="projects-scroll" id="projectsList">
+            <div style="padding: 16px; color: var(--text-muted); text-align: center;">Загрузка проектов...</div>
+        </div>
+    </div>
+
+    <script>
+        // Поддержка работы как в браузере, так и внутри автономного APK
+        const API_BASE = window.location.origin.includes('capacitor://') || window.location.origin.includes('localhost') && !window.location.port
+            ? 'http://192.168.0.106:8080'
+            : '';
+
+        let lastMsgCount = 0;
+        let isRecording = false;
+        let recognition = null;
+        let activeConvId = null;
+        let openProjects = new Set();
+
+        function autoGrow(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+        }
+
+        function checkEnter(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendPrompt();
+            }
+        }
+
+        function toggleDrawer() {
+            const drawer = document.getElementById('drawer');
+            const overlay = document.getElementById('overlay');
+            const isOpen = drawer.classList.contains('open');
+            if (isOpen) {
+                drawer.classList.remove('open');
+                overlay.classList.remove('open');
+            } else {
+                loadProjects();
+                drawer.classList.add('open');
+                overlay.classList.add('open');
+            }
+        }
+
+        async function loadProjects() {
+            try {
+                const res = await fetch(API_BASE + '/api/projects');
+                if (!res.ok) return;
+                const data = await res.json();
+                activeConvId = data.active_id;
+
+                const list = document.getElementById('projectsList');
+                list.innerHTML = '';
+
+                data.projects.forEach((proj, idx) => {
+                    const group = document.createElement('div');
+                    group.className = 'project-group';
+
+                    // Если проект содержит активный диалог или был открыт — держим открытым
+                    const hasActive = proj.conversations.some(c => c.id === activeConvId);
+                    if (hasActive || openProjects.has(proj.name) || (openProjects.size === 0 && idx === 0)) {
+                        openProjects.add(proj.name);
+                    }
+                    const isOpen = openProjects.has(proj.name);
+
+                    const header = document.createElement('div');
+                    header.className = 'project-header' + (isOpen ? ' open' : '');
+                    header.onclick = () => toggleProject(proj.name);
+                    
+                    const icon = proj.name === 'Общие диалоги' ? '💬' : '📁';
+                    header.innerHTML = `
+                        <div class="project-title-cluster">
+                            <span class="project-icon">${icon}</span>
+                            <span class="project-name">${escapeHtml(proj.name)}</span>
+                            <span class="project-badge">${proj.conversations.length}</span>
+                        </div>
+                        <span class="project-arrow">▶</span>
+                    `;
+
+                    const convsDiv = document.createElement('div');
+                    convsDiv.className = 'project-convs' + (isOpen ? ' open' : '');
+                    convsDiv.id = 'proj-' + btoa(unescape(encodeURIComponent(proj.name))).replace(/=/g, '');
+
+                    proj.conversations.forEach(c => {
+                        const item = document.createElement('div');
+                        item.className = 'conv-item' + (c.id === activeConvId ? ' active' : '');
+                        item.onclick = (e) => {
+                            e.stopPropagation();
+                            switchConversation(c.id, c.title, proj.name);
+                        };
+                        item.innerHTML = `
+                            <div class="conv-title">${escapeHtml(c.title)}</div>
+                            <div class="conv-time">${c.time}</div>
+                        `;
+                        convsDiv.appendChild(item);
+                    });
+
+                    group.appendChild(header);
+                    group.appendChild(convsDiv);
+                    list.appendChild(group);
+                });
+            } catch (e) {
+                console.error("Error loading projects", e);
+            }
+        }
+
+        function toggleProject(name) {
+            if (openProjects.has(name)) {
+                openProjects.delete(name);
+            } else {
+                openProjects.add(name);
+            }
+            loadProjects();
+        }
+
+        async function switchConversation(id, title, projName) {
+            try {
+                await fetch(API_BASE + '/api/switch_conversation?id=' + encodeURIComponent(id), { method: 'POST' });
+                activeConvId = id;
+                document.getElementById('headerProject').textContent = '📁 ' + projName;
+                document.getElementById('headerTitle').textContent = title.length > 28 ? title.substring(0, 26) + '...' : title;
+                toggleDrawer();
+                lastMsgCount = 0;
+                fetchTranscript();
+            } catch (e) {
+                alert('Ошибка переключения: ' + e);
+            }
+        }
+
+        async function fetchTranscript() {
+            try {
+                const res = await fetch(API_BASE + '/api/transcript');
+                if (!res.ok) return;
+                const data = await res.json();
+                
+                // Обновляем шапку
+                if (data.active_info) {
+                    document.getElementById('headerProject').textContent = '📁 ' + data.active_info.project;
+                    const t = data.active_info.title;
+                    document.getElementById('headerTitle').textContent = t.length > 28 ? t.substring(0, 26) + '...' : t;
+                }
+
+                const msgs = data.messages || [];
+                if (msgs.length !== lastMsgCount) {
+                    renderMessages(msgs);
+                    lastMsgCount = msgs.length;
+                }
+            } catch (e) {
+                console.error("Fetch error", e);
+            }
+        }
+
+        function renderMessages(msgs) {
+            const chat = document.getElementById('chat');
+            chat.innerHTML = '';
+            msgs.forEach(m => {
+                const div = document.createElement('div');
+                div.className = `msg ${m.role}`;
+                div.innerHTML = `<div class="msg-role">${m.role === 'user' ? 'Вы' : 'Antigravity'}</div>${escapeHtml(m.text)}`;
+                chat.appendChild(div);
+            });
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        async function sendPrompt() {
+            const input = document.getElementById('promptInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            input.value = '';
+            input.style.height = 'auto';
+
+            const chat = document.getElementById('chat');
+            const div = document.createElement('div');
+            div.className = 'msg user';
+            div.innerHTML = `<div class="msg-role">Вы (Отправка...)</div>${escapeHtml(text)}`;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+
+            try {
+                await fetch(API_BASE + '/api/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: text })
+                });
+            } catch (e) {
+                alert('Ошибка отправки: ' + e);
+            }
+        }
+
+        function quickSend(text) {
+            document.getElementById('promptInput').value = text;
+            sendPrompt();
+        }
+
+        async function sendAction(type) {
+            try {
+                await fetch(API_BASE + '/api/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: type })
+                });
+            } catch (e) {
+                alert('Ошибка действия: ' + e);
+            }
+        }
+
+        function toggleVoice() {
+            const btn = document.getElementById('micBtn');
+            const input = document.getElementById('promptInput');
+
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert('Нажмите на значок микрофона на клавиатуре вашего телефона для надиктовки.');
+                return;
+            }
+
+            if (isRecording) {
+                if (recognition) recognition.stop();
+                isRecording = false;
+                btn.classList.remove('recording');
+                return;
+            }
+
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRec();
+            recognition.lang = 'ru-RU';
+            recognition.interimResults = false;
+
+            recognition.onstart = function() {
+                isRecording = true;
+                btn.classList.add('recording');
+            };
+
+            recognition.onresult = function(event) {
+                const speechResult = event.results[0][0].transcript;
+                input.value += (input.value ? ' ' : '') + speechResult;
+                autoGrow(input);
+            };
+
+            recognition.onerror = function() {
+                isRecording = false;
+                btn.classList.remove('recording');
+            };
+
+            recognition.onend = function() {
+                isRecording = false;
+                btn.classList.remove('recording');
+            };
+
+            recognition.start();
+        }
+
+        setInterval(fetchTranscript, 1500);
+        fetchTranscript();
+    </script>
+</body>
+</html>
