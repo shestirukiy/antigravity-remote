@@ -7,31 +7,38 @@
     <meta name="theme-color" content="#181818">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Antigravity Remote</title>
+    <title>Antigravity</title>
     <style>
         :root {
-            --bg-color: #121212;
-            --surface: #181818;
-            --surface-hover: #222222;
-            --surface-card: #1e1e1e;
-            --primary: #58a6ff;
-            --text-main: #e6e6e6;
-            --text-muted: #888888;
-            --text-dim: #5c5c5c;
-            --user-bubble: #1f6feb;
-            --bot-bubble: #1e1e1e;
-            --accent-green-bright: #3fb950;
-            --accent-red: #da3633;
-            --border: #2a2a2a;
+            /* Фирменная гамма Antigravity / VS Code Dark+ */
+            --bg-canvas: #121212;
             --sidebar-bg: #181818;
+            --surface-composer: #1e1e1e;
+            --surface-composer-border: #2c2c2c;
+            --surface-hover: rgba(255, 255, 255, 0.05);
+            --surface-active: #282828;
+            --user-card-bg: #1f1f1f;
+            --user-card-border: #2f2f2f;
+            --text-primary: #e0e0e0;
+            --text-secondary: #9a9a9a;
+            --text-dim: #606060;
+            --border-subtle: #262626;
+            --accent-blue: #388bfd;
+            --accent-green: #3fb950;
+            --accent-red: #ea4a3f;
+            --code-bg: #161616;
+            --code-border: #262626;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         html, body {
             height: 100%;
             height: 100dvh;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-canvas);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "SF Pro Text", Roboto, "Helvetica Neue", Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            letter-spacing: -0.012em;
             overflow: hidden;
         }
         body {
@@ -40,380 +47,622 @@
             position: relative;
         }
 
-        /* Шапка */
+        /* Шапка в стиле заголовка Antigravity */
         header {
-            background-color: var(--surface);
-            padding: 10px 14px;
+            background-color: var(--sidebar-bg);
+            height: 48px;
+            padding: 0 12px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid var(--border-subtle);
             flex-shrink: 0;
             z-index: 10;
         }
         .header-left {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             overflow: hidden;
             flex: 1;
         }
         .btn-menu {
             background: none;
             border: none;
-            color: var(--text-main);
-            font-size: 1.45rem;
+            color: var(--text-secondary);
             cursor: pointer;
-            padding: 4px;
+            padding: 6px;
             display: flex;
             align-items: center;
+            justify-content: center;
+            border-radius: 4px;
             flex-shrink: 0;
         }
-        .header-title-container {
+        .btn-menu:active { background-color: var(--surface-hover); color: var(--text-primary); }
+        .header-breadcrumb {
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            white-space: nowrap;
             overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .header-project-badge {
-            font-size: 0.72rem;
-            font-weight: 700;
-            color: #8da4be;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        .breadcrumb-folder {
+            color: var(--text-secondary);
             display: flex;
             align-items: center;
             gap: 4px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            font-weight: 400;
         }
-        .header-title {
-            font-weight: 600;
-            font-size: 0.98rem;
-            white-space: nowrap;
+        .breadcrumb-divider {
+            color: var(--text-dim);
+            font-size: 11px;
+        }
+        .breadcrumb-title {
+            color: var(--text-primary);
+            font-weight: 500;
             overflow: hidden;
             text-overflow: ellipsis;
-            color: #ffffff;
         }
         .header-right {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             flex-shrink: 0;
+            padding-left: 8px;
         }
         .status-dot {
-            width: 8px;
-            height: 8px;
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
-            background-color: var(--accent-green-bright);
-            box-shadow: 0 0 8px var(--accent-green-bright);
+            background-color: var(--accent-green);
+            box-shadow: 0 0 6px rgba(63, 185, 80, 0.6);
+        }
+        .status-text {
+            font-size: 11.5px;
+            color: var(--text-dim);
         }
 
-        /* Чат */
+        /* Область переписки (Canvas) */
         .chat-container {
             flex: 1;
             overflow-y: auto;
-            padding: 16px;
-            padding-bottom: 145px;
+            padding: 18px 16px;
+            padding-bottom: 160px;
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 18px;
             -webkit-overflow-scrolling: touch;
         }
+
+        /* Сообщения в стиле Antigravity */
         .msg {
-            max-width: 92%;
-            padding: 12px 16px;
-            border-radius: 18px;
-            line-height: 1.5;
+            max-width: 100%;
+            line-height: 1.55;
             word-wrap: break-word;
-            font-size: 1.05rem;
+            font-size: 14px;
         }
         .msg.user {
             align-self: flex-end;
-            background-color: var(--user-bubble);
-            color: #ffffff;
-            border-bottom-right-radius: 4px;
+            max-width: 88%;
+            background-color: var(--user-card-bg);
+            border: 1px solid var(--user-card-border);
+            border-radius: 12px;
+            padding: 10px 14px;
+            color: #efefef;
         }
         .msg.assistant {
             align-self: flex-start;
-            background-color: var(--bot-bubble);
-            border: 1px solid var(--border);
-            border-bottom-left-radius: 4px;
-            white-space: pre-wrap;
+            width: 100%;
+            color: #d8d8d8;
         }
-        .msg-role {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            font-weight: 700;
-            color: var(--text-muted);
-            margin-bottom: 4px;
+        .msg-role-header {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .msg.assistant .msg-role-header {
+            color: var(--text-secondary);
+            font-weight: 500;
         }
 
-        /* Нижняя панель */
+        /* Форматирование Markdown */
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+            color: #ffffff;
+            font-weight: 600;
+            margin-top: 14px;
+            margin-bottom: 6px;
+            font-size: 15px;
+        }
+        .markdown-body h1:first-child, .markdown-body h2:first-child, .markdown-body h3:first-child {
+            margin-top: 0;
+        }
+        .markdown-body p {
+            margin-bottom: 8px;
+        }
+        .markdown-body ul, .markdown-body ol {
+            padding-left: 20px;
+            margin-bottom: 8px;
+        }
+        .markdown-body li {
+            margin-bottom: 4px;
+        }
+        .markdown-body pre {
+            background-color: var(--code-bg);
+            border: 1px solid var(--code-border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            overflow-x: auto;
+            margin: 8px 0;
+            font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+            font-size: 12px;
+            line-height: 1.45;
+            color: #d4d4d4;
+        }
+        .markdown-body code {
+            font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+            font-size: 12px;
+            background-color: rgba(255, 255, 255, 0.06);
+            padding: 2px 5px;
+            border-radius: 4px;
+            color: #e5c07b;
+        }
+        .markdown-body pre code {
+            background-color: transparent;
+            padding: 0;
+            color: inherit;
+        }
+        .diff-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background-color: #1e1e1e;
+            border: 1px solid #2d2d2d;
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-size: 12px;
+            margin: 6px 0;
+            font-family: ui-monospace, monospace;
+        }
+        .diff-badge .green { color: #3fb950; }
+        .diff-badge .red { color: #f85149; }
+
+        /* Фиксированный низ с карточкой ввода Antigravity */
         .fixed-bottom {
             position: fixed;
             bottom: 0; left: 0; right: 0;
-            background-color: var(--surface);
-            border-top: 1px solid var(--border);
+            background: linear-gradient(180deg, rgba(18, 18, 18, 0) 0%, rgba(18, 18, 18, 0.95) 25%, #121212 100%);
             z-index: 100;
             display: flex;
             flex-direction: column;
-            padding-bottom: env(safe-area-inset-bottom, 8px);
+            padding: 0 12px;
+            padding-bottom: env(safe-area-inset-bottom, 12px);
         }
+
+        /* Быстрые действия */
         .quick-actions {
             display: flex;
-            gap: 8px;
-            padding: 8px 12px;
+            gap: 6px;
+            padding: 6px 0;
             overflow-x: auto;
             white-space: nowrap;
             -webkit-overflow-scrolling: touch;
-            border-bottom: 1px solid #202020;
         }
         .action-chip {
-            background-color: var(--surface-card);
-            color: var(--text-main);
-            border: 1px solid var(--border);
-            padding: 6px 14px;
-            border-radius: 18px;
-            font-size: 0.88rem;
-            font-weight: 600;
+            background-color: #1a1a1a;
+            color: var(--text-secondary);
+            border: 1px solid #2d2d2d;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
             cursor: pointer;
             flex-shrink: 0;
-        }
-        .action-chip.proceed {
-            background-color: #1b4728;
-            border-color: var(--accent-green-bright);
-            color: #7ee787;
-        }
-        .input-bar {
-            padding: 10px 12px;
             display: flex;
-            gap: 10px;
             align-items: center;
+            gap: 4px;
         }
+        .action-chip:active { background-color: #242424; color: var(--text-primary); }
+        .action-chip.proceed {
+            background-color: #16291a;
+            border-color: #2c5432;
+            color: #4ac26b;
+        }
+        .action-chip.cancel {
+            background-color: #291818;
+            border-color: #482323;
+            color: #f85149;
+        }
+
+        /* Композер Antigravity */
+        .composer-card {
+            background-color: var(--surface-composer);
+            border: 1px solid var(--surface-composer-border);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            padding: 10px 12px 8px 12px;
+            gap: 6px;
+        }
+        .composer-card:focus-within {
+            border-color: #3e3e3e;
+        }
+
         textarea {
-            flex: 1;
-            background-color: var(--surface-card);
-            border: 1px solid var(--border);
-            color: #fff;
-            padding: 12px 16px;
-            border-radius: 22px;
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
             resize: none;
-            max-height: 100px;
-            min-height: 48px;
-            font-size: 1.05rem;
-            line-height: 1.35;
+            max-height: 110px;
+            min-height: 36px;
+            font-size: 14px;
+            line-height: 1.45;
             outline: none;
             font-family: inherit;
         }
-        textarea:focus { border-color: #404040; }
-        .btn-round {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
+        textarea::placeholder { color: #606060; }
+
+        .composer-bottom-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: 4px;
+            border-top: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .composer-left {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Кнопка плюса и чип модели */
+        .btn-plus-tool {
+            background: none;
             border: none;
-            background-color: #2b6cb0;
-            color: #fff;
+            color: var(--text-dim);
+            padding: 4px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-plus-tool:active { background-color: var(--surface-hover); color: var(--text-secondary); }
+
+        .model-selector-bar {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: var(--text-secondary);
+            font-size: 12.5px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+            user-select: none;
+        }
+        .model-selector-bar:active {
+            background-color: var(--surface-hover);
+            color: var(--text-primary);
+        }
+        .model-name-text {
+            color: #b5b5b5;
+            font-weight: 400;
+        }
+        .model-chevron {
+            color: var(--text-dim);
+            font-size: 10px;
+        }
+
+        .composer-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-icon-action {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            flex-shrink: 0;
-            font-size: 1.25rem;
-            transition: transform 0.15s;
         }
-        .btn-round:active { transform: scale(0.92); }
-        .btn-voice {
-            background-color: var(--surface-card);
-            border: 1px solid var(--border);
-            color: var(--text-main);
-            font-size: 1.3rem;
-        }
-        .btn-voice.recording {
-            background-color: var(--accent-red);
-            color: white;
+        .btn-icon-action:active { background-color: var(--surface-hover); }
+        .btn-icon-action.recording {
+            color: var(--accent-red);
             animation: pulse 1.2s infinite;
         }
+        .btn-send-pill {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: none;
+            background-color: var(--accent-blue);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .btn-send-pill:active { transform: scale(0.95); opacity: 0.9; }
+
         @keyframes pulse {
             0% { transform: scale(1); }
-            50% { transform: scale(1.12); }
+            50% { transform: scale(1.15); }
             100% { transform: scale(1); }
         }
 
-        /* ТОЧНАЯ КОПИЯ БОКОВОЙ ПАНЕЛИ ANTIGRAVITY */
+        /* БОКОВАЯ ПАНЕЛЬ: 100% КОПИЯ ДЕСКТОПА ANTIGRAVITY */
         .drawer-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.75);
-            backdrop-filter: blur(4px);
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(2px);
             z-index: 200;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.25s ease;
+            transition: opacity 0.2s ease;
         }
         .drawer-overlay.open { opacity: 1; pointer-events: auto; }
+
         .drawer {
             position: fixed;
             top: 0; left: 0; bottom: 0;
-            width: 88%;
-            max-width: 360px;
+            width: 84%;
+            max-width: 310px;
             background-color: var(--sidebar-bg);
             z-index: 210;
             transform: translateX(-100%);
-            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             flex-direction: column;
-            border-right: 1px solid var(--border);
+            border-right: 1px solid var(--border-subtle);
         }
         .drawer.open { transform: translateX(0); }
 
         .sidebar-top {
-            padding: 14px 14px 10px 14px;
+            padding: 12px 12px 6px 12px;
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            border-bottom: 1px solid var(--border);
+            gap: 2px;
         }
-        .btn-new-convo {
-            background-color: #242424;
-            color: #ffffff;
+
+        .btn-new-conversation {
+            background-color: #222222;
+            color: #dedede;
             border: 1px solid #333333;
-            border-radius: 8px;
-            padding: 10px 14px;
-            font-size: 0.95rem;
+            border-radius: 6px;
+            padding: 7px 10px;
+            font-size: 13px;
             font-weight: 500;
             display: flex;
             align-items: center;
             gap: 8px;
             cursor: pointer;
             width: 100%;
-            text-align: left;
+            margin-bottom: 6px;
         }
-        .btn-new-convo:active { background-color: #2d2d2d; }
+        .btn-new-conversation:active { background-color: #2a2a2a; color: #fff; }
 
-        .sidebar-nav-item {
-            padding: 8px 10px;
-            color: #b0b0b0;
-            font-size: 0.92rem;
+        .sidebar-menu-item {
+            padding: 6px 10px;
+            color: var(--text-secondary);
+            font-size: 13px;
             display: flex;
             align-items: center;
             gap: 10px;
             cursor: pointer;
-            border-radius: 6px;
+            border-radius: 4px;
+            font-weight: 400;
         }
-        .sidebar-nav-item:hover { background-color: rgba(255, 255, 255, 0.04); }
+        .sidebar-menu-item:active { background-color: var(--surface-hover); color: var(--text-primary); }
+        .sidebar-menu-item svg { color: #858585; flex-shrink: 0; }
 
-        /* Заголовок Projects */
-        .projects-header-row {
-            padding: 12px 14px 6px 14px;
+        .projects-header {
+            padding: 14px 14px 4px 14px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            color: var(--text-muted);
-            font-size: 0.82rem;
+            color: #757575;
+            font-size: 11px;
             font-weight: 600;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
+        }
+        .projects-header-icons {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #757575;
         }
 
-        .projects-scroll {
+        .projects-list-scroll {
             flex: 1;
             overflow-y: auto;
-            padding: 0 8px 20px 8px;
+            padding: 6px 6px 16px 6px;
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 1px;
         }
 
-        /* Проект в стиле Antigravity */
-        .project-item {
+        .project-group {
             display: flex;
             flex-direction: column;
         }
         .project-row {
-            padding: 8px 10px;
-            border-radius: 6px;
+            padding: 6px 8px;
+            border-radius: 4px;
             display: flex;
             align-items: center;
             gap: 8px;
             cursor: pointer;
-            color: #d1d1d1;
-            font-size: 0.94rem;
+            color: #cccccc;
+            font-size: 13px;
             user-select: none;
         }
-        .project-row:hover, .project-row:active {
-            background-color: rgba(255, 255, 255, 0.05);
+        .project-row:active {
+            background-color: var(--surface-hover);
         }
-        .project-folder-icon {
+        .project-row svg.folder-icon {
             color: #8c8c8c;
-            font-size: 1rem;
-            display: flex;
-            align-items: center;
+            flex-shrink: 0;
         }
-        .project-title {
+        .project-row .project-name {
             flex: 1;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            font-weight: 500;
+            font-weight: 400;
         }
 
-        /* Список диалогов внутри проекта */
-        .convs-sublist {
+        .project-convs {
             display: none;
             flex-direction: column;
-            padding-left: 24px;
             gap: 1px;
-            margin-top: 2px;
-            margin-bottom: 4px;
+            margin-top: 1px;
+            margin-bottom: 2px;
         }
-        .convs-sublist.open {
+        .project-group.expanded .project-convs {
             display: flex;
         }
 
-        .conv-subitem {
-            padding: 7px 10px;
-            border-radius: 6px;
+        .conv-item {
+            padding: 5px 8px 5px 28px;
+            border-radius: 4px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 8px;
             cursor: pointer;
-            color: #adadad;
-            font-size: 0.88rem;
+            color: #929292;
+            font-size: 12.5px;
         }
-        .conv-subitem:hover, .conv-subitem:active {
-            background-color: rgba(255, 255, 255, 0.04);
+        .conv-item:active {
+            background-color: var(--surface-hover);
+            color: #cccccc;
+        }
+        .conv-item.active {
+            background-color: var(--surface-active);
             color: #ffffff;
+            font-weight: 400;
         }
-        .conv-subitem.active {
-            background-color: rgba(88, 166, 255, 0.14);
-            color: #ffffff;
-            font-weight: 500;
-        }
-        .conv-subitem-title {
+        .conv-item-title {
             flex: 1;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .conv-subitem-time {
+        .conv-item-time {
             color: var(--text-dim);
-            font-size: 0.78rem;
+            font-size: 11px;
             flex-shrink: 0;
         }
-        .conv-subitem.active .conv-subitem-time {
-            color: #58a6ff;
+        .conv-item.active .conv-item-time {
+            color: #7aa2f7;
         }
 
-        .sidebar-footer {
-            padding: 12px 14px;
-            border-top: 1px solid var(--border);
-            color: var(--text-muted);
-            font-size: 0.9rem;
+        .sidebar-bottom {
+            padding: 10px 14px;
+            border-top: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            font-size: 13px;
             display: flex;
             align-items: center;
             gap: 10px;
             cursor: pointer;
+        }
+        .sidebar-bottom:active { background-color: var(--surface-hover); color: var(--text-primary); }
+
+        /* МОДАЛКА ВЫБОРА МОДЕЛИ */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(2px);
+            z-index: 300;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-sheet {
+            background-color: #1a1a1a;
+            border: 1px solid var(--border-subtle);
+            border-top-left-radius: 14px;
+            border-top-right-radius: 14px;
+            width: 100%;
+            max-width: 440px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        .modal-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-title { font-weight: 500; font-size: 14px; color: #fff; }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-close:active { color: #fff; }
+        .models-list {
+            overflow-y: auto;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .model-option {
+            padding: 10px 12px;
+            border-radius: 8px;
+            background-color: #202020;
+            border: 1px solid transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .model-option:active { background-color: #262626; }
+        .model-option.selected {
+            border-color: #388bfd;
+            background-color: rgba(56, 139, 253, 0.12);
+        }
+        .model-opt-name { font-weight: 400; font-size: 13px; color: #fff; }
+        .model-opt-provider { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+        .model-opt-badge {
+            font-size: 11px;
+            padding: 2px 7px;
+            border-radius: 6px;
+            background-color: #282828;
+            color: #9a9a9a;
+        }
+        .model-option.selected .model-opt-badge {
+            background-color: #388bfd;
+            color: #ffffff;
         }
     </style>
 </head>
@@ -421,90 +670,149 @@
     <!-- Шапка -->
     <header>
         <div class="header-left">
-            <button class="btn-menu" onclick="toggleDrawer()" title="Меню Antigravity">☰</button>
-            <div class="header-title-container">
-                <div class="header-project-badge" id="headerProject">📁 Projects</div>
-                <div class="header-title" id="headerTitle">Antigravity Remote</div>
+            <button class="btn-menu" onclick="toggleDrawer()" title="Меню Antigravity">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+            <div class="header-breadcrumb">
+                <span class="breadcrumb-folder" id="headerProject">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>Projects</span>
+                </span>
+                <span class="breadcrumb-divider">/</span>
+                <span class="breadcrumb-title" id="headerTitle">Antigravity Remote</span>
             </div>
         </div>
         <div class="header-right">
             <div class="status-dot"></div>
-            <div style="font-size: 0.78rem; color: var(--text-muted);">Wi-Fi</div>
+            <span class="status-text">Wi-Fi</span>
         </div>
     </header>
 
-    <!-- Сообщения чата -->
+    <!-- Canvas чата -->
     <div class="chat-container" id="chat">
         <div class="msg assistant">
-            <div class="msg-role">Система</div>
-            Подключено к Antigravity на ПК. Выберите проект и диалог в боковом меню ☰ или отправьте команду.
+            <div class="msg-role-header">Antigravity</div>
+            <div class="markdown-body">
+                <p>Сессия активна. Откройте боковое меню для перехода к проектам или начните диалог ниже.</p>
+            </div>
         </div>
     </div>
 
-    <!-- Фиксированный низ -->
+    <!-- Фиксированный низ: карточка Antigravity -->
     <div class="fixed-bottom">
         <div class="quick-actions">
-            <button class="action-chip proceed" onclick="sendAction('proceed')">✓ Одобрить (Proceed)</button>
-            <button class="action-chip" onclick="quickSend('Покажи текущий статус задачи')">Статус задачи</button>
-            <button class="action-chip" onclick="quickSend('Продолжай')">Продолжай</button>
-            <button class="action-chip" onclick="sendAction('escape')">❌ Отмена</button>
+            <button class="action-chip proceed" onclick="sendAction('proceed')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Proceed</span>
+            </button>
+            <button class="action-chip" onclick="quickSend('Покажи текущий статус задачи')">📊 Статус</button>
+            <button class="action-chip" onclick="quickSend('Продолжай')">▶ Продолжай</button>
+            <button class="action-chip cancel" onclick="sendAction('escape')">✕ Отмена</button>
         </div>
-        <div class="input-bar">
-            <button class="btn-round btn-voice" id="micBtn" onclick="toggleVoice()" title="Голосовой ввод">🎤</button>
-            <textarea id="promptInput" rows="1" placeholder="Инструкция для Antigravity..." oninput="autoGrow(this)" onkeydown="checkEnter(event)"></textarea>
-            <button class="btn-round" onclick="sendPrompt()" title="Отправить">➤</button>
+
+        <div class="composer-card">
+            <textarea id="promptInput" rows="1" placeholder="Спросите или дайте задачу..." oninput="autoGrow(this)" onkeydown="checkEnter(event)"></textarea>
+            <div class="composer-bottom-bar">
+                <div class="composer-left">
+                    <button class="btn-plus-tool" title="Добавить файл / контекст">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
+                    <div class="model-selector-bar" onclick="openModelModal()">
+                        <span class="model-name-text" id="currentModelLabel">Gemini 3.8 Flash Medium</span>
+                        <span class="model-chevron">^</span>
+                    </div>
+                </div>
+                <div class="composer-right">
+                    <button class="btn-icon-action" id="micBtn" onclick="toggleVoice()" title="Голосовой ввод">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                            <line x1="12" y1="19" x2="12" y2="23"></line>
+                            <line x1="8" y1="23" x2="16" y2="23"></line>
+                        </svg>
+                    </button>
+                    <button class="btn-send-pill" onclick="sendPrompt()" title="Отправить">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Боковое меню (ТОЧНАЯ КОПИЯ ANTIGRAVITY) -->
+    <!-- Боковое меню (1-в-1 копия десктопа Antigravity) -->
     <div class="drawer-overlay" id="overlay" onclick="toggleDrawer()"></div>
     <div class="drawer" id="drawer">
         <div class="sidebar-top">
-            <button class="btn-new-convo" onclick="quickSend('/new')">
-                <span style="font-size: 1.1rem; line-height: 1;">+</span>
+            <button class="btn-new-conversation" onclick="quickSend('/new')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                 <span>New Conversation</span>
             </button>
-            <div class="sidebar-nav-item" onclick="toggleDrawer()">
-                <span>🕒</span>
+            <div class="sidebar-menu-item" onclick="toggleDrawer()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                 <span>Conversation History</span>
             </div>
-            <div class="sidebar-nav-item" onclick="quickSend('/automations')">
-                <span>⏱️</span>
+            <div class="sidebar-menu-item" onclick="quickSend('/automations')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2 2"></path><path d="M5 3L2 6"></path><path d="M22 6l-3-3"></path><path d="M12 2v3"></path></svg>
                 <span>Automations</span>
             </div>
-            <div class="sidebar-nav-item" onclick="quickSend('/customizations')">
-                <span>🖨️</span>
+            <div class="sidebar-menu-item" onclick="quickSend('/customizations')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
                 <span>Customizations</span>
             </div>
         </div>
 
-        <div class="projects-header-row">
+        <div class="projects-header">
             <span>Projects</span>
-            <span style="font-size: 1rem; opacity: 0.7;">📁</span>
+            <div class="projects-header-icons">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>
+            </div>
         </div>
 
-        <div class="projects-scroll" id="projectsList">
-            <div style="padding: 16px; color: var(--text-muted); text-align: center;">Загрузка проектов...</div>
+        <div class="projects-list-scroll" id="projectsList">
+            <div style="padding: 14px; color: var(--text-dim); text-align: center; font-size: 12px;">Загрузка проектов...</div>
         </div>
 
-        <div class="sidebar-footer" onclick="toggleDrawer()">
-            <span>⚙️</span>
+        <div class="sidebar-bottom" onclick="toggleDrawer()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
             <span>Settings</span>
+        </div>
+    </div>
+
+    <!-- Модалка выбора модели -->
+    <div class="modal-overlay" id="modelModal" onclick="closeModelModal(event)">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title">Модель AI</span>
+                <button class="modal-close" onclick="closeModelModal()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="models-list" id="modelsList"></div>
         </div>
     </div>
 
     <script>
         const API_BASE = '';
-
         let lastMsgCount = 0;
         let isRecording = false;
         let recognition = null;
         let activeConvId = null;
         let openProjects = new Set();
+        let selectedModel = localStorage.getItem('ag_model') || 'Gemini 3.8 Flash Medium';
 
         function autoGrow(el) {
             el.style.height = 'auto';
-            el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+            el.style.height = Math.min(el.scrollHeight, 110) + 'px';
         }
 
         function checkEnter(e) {
@@ -531,7 +839,7 @@
         async function loadProjects() {
             try {
                 const res = await fetch(API_BASE + '/api/projects');
-                if (!res.ok) return;
+                if (!res.ok) throw new Error('HTTP ' + res.status);
                 const data = await res.json();
                 activeConvId = data.active_id;
 
@@ -539,74 +847,93 @@
                 list.innerHTML = '';
 
                 data.projects.forEach((proj, idx) => {
-                    const item = document.createElement('div');
-                    item.className = 'project-item';
+                    const group = document.createElement('div');
+                    group.className = 'project-group';
 
-                    // Если содержит активный диалог или был открыт ранее, открываем
                     const hasActive = proj.conversations.some(c => c.id === activeConvId);
                     if (hasActive || (openProjects.size === 0 && idx === 0)) {
                         openProjects.add(proj.name);
                     }
-                    const isOpen = openProjects.has(proj.name);
+                    if (openProjects.has(proj.name)) {
+                        group.classList.add('expanded');
+                    }
 
                     const row = document.createElement('div');
                     row.className = 'project-row';
-                    row.onclick = () => toggleProject(proj.name);
+                    row.onclick = () => toggleProject(proj.name, group);
                     row.innerHTML = `
-                        <span class="project-folder-icon">📁</span>
-                        <span class="project-title">${escapeHtml(proj.name)}</span>
+                        <svg class="folder-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        <span class="project-name">${escapeHtml(proj.name)}</span>
                     `;
 
                     const sublist = document.createElement('div');
-                    sublist.className = 'convs-sublist' + (isOpen ? ' open' : '');
+                    sublist.className = 'project-convs';
 
                     proj.conversations.forEach(c => {
                         const convRow = document.createElement('div');
-                        convRow.className = 'conv-subitem' + (c.id === activeConvId ? ' active' : '');
+                        convRow.className = 'conv-item' + (c.id === activeConvId ? ' active' : '');
                         convRow.onclick = (e) => {
                             e.stopPropagation();
                             switchConversation(c.id, c.title, proj.name);
                         };
                         convRow.innerHTML = `
-                            <span class="conv-subitem-title">${escapeHtml(c.title)}</span>
-                            <span class="conv-subitem-time">${c.time}</span>
+                            <span class="conv-item-title">${escapeHtml(c.title)}</span>
+                            <span class="conv-item-time">${c.time}</span>
                         `;
                         sublist.appendChild(convRow);
                     });
 
-                    item.appendChild(row);
-                    item.appendChild(sublist);
-                    list.appendChild(item);
+                    group.appendChild(row);
+                    group.appendChild(sublist);
+                    list.appendChild(group);
                 });
             } catch (e) {
                 console.error("Error loading projects", e);
                 const list = document.getElementById('projectsList');
                 if (list) {
-                    list.innerHTML = '<div style="padding: 16px; color: #ff7b72; text-align: center;">Ошибка загрузки: ' + escapeHtml(e.message || String(e)) + '</div>';
+                    list.innerHTML = '<div style="padding: 14px; color: #ff7b72; text-align: center; font-size: 12px;">Ошибка загрузки</div>';
                 }
             }
         }
 
-        function toggleProject(name) {
+        function toggleProject(name, groupEl) {
             if (openProjects.has(name)) {
                 openProjects.delete(name);
+                groupEl.classList.remove('expanded');
             } else {
                 openProjects.add(name);
+                groupEl.classList.add('expanded');
             }
-            loadProjects();
         }
 
         async function switchConversation(id, title, projName) {
             try {
                 await fetch(API_BASE + '/api/switch_conversation?id=' + encodeURIComponent(id), { method: 'POST' });
                 activeConvId = id;
-                document.getElementById('headerProject').textContent = '📁 ' + projName;
-                document.getElementById('headerTitle').textContent = title.length > 28 ? title.substring(0, 26) + '...' : title;
+                updateHeaderBreadcrumb(projName, title);
                 toggleDrawer();
                 lastMsgCount = 0;
                 fetchTranscript();
             } catch (e) {
                 alert('Ошибка переключения: ' + e);
+            }
+        }
+
+        function updateHeaderBreadcrumb(proj, title) {
+            const folderEl = document.getElementById('headerProject');
+            if (folderEl) {
+                folderEl.innerHTML = `
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>${escapeHtml(proj)}</span>
+                `;
+            }
+            const titleEl = document.getElementById('headerTitle');
+            if (titleEl) {
+                titleEl.textContent = title.length > 28 ? title.substring(0, 26) + '...' : title;
             }
         }
 
@@ -617,9 +944,7 @@
                 const data = await res.json();
                 
                 if (data.active_info) {
-                    document.getElementById('headerProject').textContent = '📁 ' + data.active_info.project;
-                    const t = data.active_info.title;
-                    document.getElementById('headerTitle').textContent = t.length > 28 ? t.substring(0, 26) + '...' : t;
+                    updateHeaderBreadcrumb(data.active_info.project, data.active_info.title);
                 }
 
                 const msgs = data.messages || [];
@@ -632,13 +957,54 @@
             }
         }
 
+        function formatMarkdown(text) {
+            if (!text) return '';
+            // Basic clean markdown renderer for Antigravity responses
+            let html = escapeHtml(text);
+            
+            // Fenced code blocks
+            html = html.replace(/```([a-zA-Z0-9_\-\.]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+                return `<pre><code>${code.trim()}</code></pre>`;
+            });
+
+            // Inline code
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+            // Headers
+            html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+            html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+            html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+            // Bold
+            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+            // Bullets
+            html = html.replace(/^\s*[\-\*]\s+(.*$)/gim, '<li>$1</li>');
+            html = html.replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>');
+            // Clean consecutive ul tags
+            html = html.replace(/<\/ul>\s*<ul>/g, '');
+
+            // Files changed badge
+            html = html.replace(/(\d+ files? changed(?:, \+\d+)?(?:, \-\d+)?)/g, '<span class="diff-badge">$1</span>');
+
+            // Line breaks
+            html = html.replace(/\n\n/g, '<p></p>');
+            html = html.replace(/\n/g, '<br>');
+
+            return html;
+        }
+
         function renderMessages(msgs) {
             const chat = document.getElementById('chat');
             chat.innerHTML = '';
             msgs.forEach(m => {
                 const div = document.createElement('div');
                 div.className = `msg ${m.role}`;
-                div.innerHTML = `<div class="msg-role">${m.role === 'user' ? 'Вы' : 'Antigravity'}</div>${escapeHtml(m.text)}`;
+                if (m.role === 'user') {
+                    div.innerHTML = `<div class="msg-role-header">Вы</div>${escapeHtml(m.text)}`;
+                } else {
+                    div.innerHTML = `<div class="msg-role-header">Antigravity</div><div class="markdown-body">${formatMarkdown(m.text)}</div>`;
+                }
                 chat.appendChild(div);
             });
             chat.scrollTop = chat.scrollHeight;
@@ -660,7 +1026,7 @@
             const chat = document.getElementById('chat');
             const div = document.createElement('div');
             div.className = 'msg user';
-            div.innerHTML = `<div class="msg-role">Вы (Отправка...)</div>${escapeHtml(text)}`;
+            div.innerHTML = `<div class="msg-role-header">Вы (отправка...)</div>${escapeHtml(text)}`;
             chat.appendChild(div);
             chat.scrollTop = chat.scrollHeight;
 
@@ -668,7 +1034,7 @@
                 await fetch(API_BASE + '/api/send', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: text })
+                    body: JSON.stringify({ prompt: text, model: selectedModel })
                 });
             } catch (e) {
                 alert('Ошибка отправки: ' + e);
@@ -692,12 +1058,55 @@
             }
         }
 
+        async function openModelModal() {
+            try {
+                const res = await fetch(API_BASE + '/api/models');
+                const data = await res.json();
+                const list = document.getElementById('modelsList');
+                list.innerHTML = '';
+                data.models.forEach(m => {
+                    const opt = document.createElement('div');
+                    opt.className = 'model-option' + (m.name === selectedModel ? ' selected' : '');
+                    opt.onclick = () => selectModel(m.name);
+                    opt.innerHTML = `
+                        <div>
+                            <div class="model-opt-name">${escapeHtml(m.name)}</div>
+                            <div class="model-opt-provider">${escapeHtml(m.provider)}</div>
+                        </div>
+                        <span class="model-opt-badge">${escapeHtml(m.badge)}</span>
+                    `;
+                    list.appendChild(opt);
+                });
+                document.getElementById('modelModal').classList.add('open');
+            } catch (e) {
+                alert('Ошибка загрузки моделей');
+            }
+        }
+
+        function closeModelModal() {
+            document.getElementById('modelModal').classList.remove('open');
+        }
+
+        async function selectModel(name) {
+            selectedModel = name;
+            localStorage.setItem('ag_model', name);
+            document.getElementById('currentModelLabel').textContent = name;
+            closeModelModal();
+            try {
+                await fetch(API_BASE + '/api/set_model', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: name })
+                });
+            } catch (e) {}
+        }
+
         function toggleVoice() {
             const btn = document.getElementById('micBtn');
             const input = document.getElementById('promptInput');
 
             if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                alert('Нажмите на значок микрофона на клавиатуре вашего телефона для надиктовки.');
+                alert('Используйте микрофон на экранной клавиатуре.');
                 return;
             }
 
@@ -737,6 +1146,7 @@
             recognition.start();
         }
 
+        document.getElementById('currentModelLabel').textContent = selectedModel;
         setInterval(fetchTranscript, 1500);
         fetchTranscript();
     </script>
