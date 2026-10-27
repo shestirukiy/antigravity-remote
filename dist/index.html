@@ -106,6 +106,17 @@ def get_relative_time(mtime_str):
     except Exception:
         return ""
 
+def parse_mtime(mtime_val):
+    if not mtime_val:
+        return 0.0
+    if isinstance(mtime_val, (int, float)):
+        return float(mtime_val)
+    try:
+        clean_iso = str(mtime_val).replace(" ", "T").split("+")[0]
+        return datetime.fromisoformat(clean_iso).replace(tzinfo=timezone.utc).timestamp()
+    except Exception:
+        return 0.0
+
 def get_antigravity_data():
     ordered_pids = []
     if STORAGE_PATH.exists():
@@ -219,11 +230,8 @@ def get_active_conv_id():
         convs = get_conversations_list()
         # Если в базе появился диалог, дата которого новее создания нового диалога
         if convs:
-            try:
-                latest_mtime = float(convs[0].get("mtime", 0))
-            except Exception:
-                latest_mtime = 0
-            if latest_mtime > PENDING_NEW_TIMESTAMP:
+            latest_ts = parse_mtime(convs[0].get("mtime"))
+            if latest_ts >= (PENDING_NEW_TIMESTAMP - 5):
                 CURRENT_CONV_ID = convs[0]["id"]
                 PENDING_NEW_CONV = None
                 return CURRENT_CONV_ID
@@ -563,8 +571,8 @@ def queue_worker_loop():
             success = execute_antigravity_injection(item_to_send["prompt"])
             if success:
                 with QUEUE_LOCK:
-                    item_to_send["status"] = "sent"
-                    item_to_send["send_time"] = time.time()
+                    if item_to_send in MESSAGE_QUEUE:
+                        MESSAGE_QUEUE.remove(item_to_send)
                 LAST_INJECT_TIME = time.time()
             else:
                 # If agent is busy, return to queued state to retry
@@ -1762,17 +1770,18 @@ HTML_PAGE = r"""<!DOCTYPE html>
             const list = document.getElementById('queueItems');
             const countEl = document.getElementById('queueCount');
             
-            if (!queue || queue.length === 0) {
+            const pendingItems = (queue || []).filter(item => item.status !== 'sent');
+            if (pendingItems.length === 0) {
                 panel.style.display = 'none';
                 list.innerHTML = '';
                 return;
             }
 
             panel.style.display = 'flex';
-            countEl.textContent = queue.length;
+            countEl.textContent = pendingItems.length;
             list.innerHTML = '';
 
-            queue.forEach(item => {
+            pendingItems.forEach(item => {
                 const row = document.createElement('div');
                 row.className = 'queue-item';
                 const isSending = item.status === 'sending';
