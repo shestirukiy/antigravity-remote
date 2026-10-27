@@ -925,7 +925,7 @@
 
     <script>
         const API_BASE = '';
-        let lastMsgCount = 0;
+        let lastMsgSig = '';
 
         let activeConvId = null;
         let openProjects = new Set();
@@ -1056,7 +1056,7 @@
                 activeConvId = id;
                 updateHeaderBreadcrumb(projName, title);
                 toggleDrawer();
-                lastMsgCount = 0;
+                lastMsgSig = '';
                 fetchTranscript();
             } catch (e) {
                 alert('Ошибка переключения: ' + e);
@@ -1098,9 +1098,12 @@
                 }
 
                 const msgs = data.messages || [];
-                if (msgs.length !== lastMsgCount) {
+                const lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : null;
+                const sig = msgs.length + '|' + (lastMsg ? lastMsg.role + ':' + (lastMsg.text || '').length + ':' + (lastMsg.text || '').slice(-25) : '');
+                
+                if (sig !== lastMsgSig) {
                     renderMessages(msgs);
-                    lastMsgCount = msgs.length;
+                    lastMsgSig = sig;
                 }
 
                 renderQueue(data.queue || []);
@@ -1309,7 +1312,7 @@
         }
 
         document.getElementById('currentModelLabel').textContent = selectedModel;
-        setInterval(fetchTranscript, 1500);
+        setInterval(fetchTranscript, 800);
         fetchTranscript();
     </script>
 </body>
