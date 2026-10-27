@@ -1,4 +1,617 @@
-<!DOCTYPE html>
+python3
+# -*- coding: utf-8 -*-
+"""
+Antigravity Local Web Remote 3.5 (Натуральный интерфейс Antigravity)
+- Пиксель-в-пиксель дизайн боковой панели и чата Antigravity
+- Выбор модели (Gemini 3.8 Flash, Pro, Claude 3.7 Sonnet, GPT-4o и др.)
+- Быстрые действия, голосовой ввод, список проектов из базы данных
+"""
+
+import os
+import sys
+import json
+import time
+import uuid
+import threading
+import sqlite3
+import subprocess
+import urllib.parse
+import urllib.request
+import asyncio
+from pathlib import Path
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+from urllib.parse import parse_qs, urlparse
+from datetime import datetime, timezone
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
+HOST = "0.0.0.0"
+PORT = 8080
+USERPROFILE = os.environ.get("USERPROFILE", r"C:\Users\Shestirukiy")
+BRAIN_DIR = Path(USERPROFILE) / ".gemini" / "antigravity" / "brain"
+DB_PATH = Path(USERPROFILE) / ".gemini" / "antigravity" / "conversation_summaries.db"
+STORAGE_PATH = Path(USERPROFILE) / "AppData" / "Roaming" / "Antigravity" / "app_storage.json"
+
+CURRENT_CONV_ID = None
+CURRENT_MODEL = "Gemini 3.8 Flash Medium"
+
+AVAILABLE_MODELS = [
+    {"id": "gemini-3.8-flash-medium", "name": "Gemini 3.8 Flash Medium", "provider": "Google DeepMind", "badge": "Быстрая", "default": True},
+    {"id": "gemini-3.8-pro", "name": "Gemini 3.8 Pro", "provider": "Google DeepMind", "badge": "Глубокие рассуждения"},
+    {"id": "gemini-3.8-flash", "name": "Gemini 3.8 Flash", "provider": "Google DeepMind", "badge": "Ультра-быстрая"}
+]
+
+# Очередь команд
+MESSAGE_QUEUE = []
+QUEUE_LOCK = threading.Lock()
+QUEUE_EVENT = threading.Event()
+LAST_INJECT_TIME = 0
+PENDING_NEW_CONV = None
+PENDING_NEW_TIMESTAMP = 0
+
+def add_to_queue(prompt):
+    item_id = str(uuid.uuid4())[:8]
+    item = {
+        "id": item_id,
+        "prompt": prompt,
+        "timestamp": time.time(),
+        "status": "queued"
+    }
+    with QUEUE_LOCK:
+        MESSAGE_QUEUE.append(item)
+    QUEUE_EVENT.set()
+    return item_id
+
+def update_queue_item(item_id, new_prompt):
+    with QUEUE_LOCK:
+        for q in MESSAGE_QUEUE:
+            if q.get("id") == item_id:
+                q["prompt"] = new_prompt
+                return True
+    return False
+
+def clean_queue_against_transcript(msgs):
+    if not msgs: return
+    recent_user_texts = [m.get("text", "").strip() for m in msgs[-5:] if m.get("role") == "user"]
+    with QUEUE_LOCK:
+        global MESSAGE_QUEUE
+        now = time.time()
+        new_queue = []
+        for q in MESSAGE_QUEUE:
+            q_text = q.get("prompt", "").strip()
+            if q_text in recent_user_texts:
+                continue
+            if q.get("status") == "sent" and (now - q.get("send_time", now)) > 15:
+                continue
+            new_queue.append(q)
+        MESSAGE_QUEUE = new_queue
+
+def get_relative_time(mtime_str):
+    if not mtime_str: return ""
+    try:
+        clean_iso = mtime_str.split(".")[0]
+        dt = datetime.fromisoformat(clean_iso).replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        diff = (now - dt).total_seconds()
+        if diff < 60: return "1m"
+        if diff < 3600: return f"{int(diff // 60)}m"
+        if diff < 86400: return f"{int(diff // 3600)}h"
+        days = int(diff // 86400)
+        return f"{days}d"
+    except Exception:
+        return ""
+
+def get_antigravity_data():
+    ordered_pids = []
+    if STORAGE_PATH.exists():
+        try:
+            storage = json.loads(STORAGE_PATH.read_text(encoding="utf-8"))
+            last_pid = storage.get("lastCreatedProjectId")
+            order = json.loads(storage.get("projectsOrder", "[]"))
+            if last_pid and last_pid not in ordered_pids:
+                ordered_pids.append(last_pid)
+            for pid in order:
+                if pid not in ordered_pids:
+                    ordered_pids.append(pid)
+        except Exception:
+            pass
+
+    if not DB_PATH.exists():
+        return [], []
+
+    conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+    c = conn.cursor()
+
+    projects = []
+    seen_conv_ids = set()
+
+    for pid in ordered_pids:
+        rows = c.execute("""
+            SELECT conversation_id, title, workspace_uris, last_modified_time 
+            FROM conversation_summaries 
+            WHERE project_id = ? 
+            ORDER BY last_modified_time DESC
+        """, (pid,)).fetchall()
+
+        if not rows:
+            continue
+
+        proj_name = None
+        for _, _, ws, _ in rows:
+            if ws:
+                try:
+                    uris = json.loads(ws)
+                    if uris and len(uris) > 0:
+                        raw = urllib.parse.unquote(uris[0])
+                        p = Path(raw.replace("file:///", "").replace("file://", ""))
+                        proj_name = p.name
+                        if proj_name: break
+                except Exception:
+                    pass
+
+        if not proj_name:
+            continue
+
+        convs = []
+        for cid, title, ws, mtime in rows:
+            seen_conv_ids.add(cid)
+            clean_title = title if title and title.strip() and not title.strip().startswith("\ufffd") else f"Диалог {cid[:8]}"
+            convs.append({
+                "id": cid,
+                "title": clean_title,
+                "time": get_relative_time(mtime),
+                "mtime": mtime,
+                "project": proj_name
+            })
+
+        projects.append({
+            "id": pid,
+            "name": proj_name,
+            "conversations": convs
+        })
+
+    # Диалоги ВНЕ проектов (standalone)
+    out_rows = c.execute("""
+        SELECT conversation_id, title, workspace_uris, last_modified_time 
+        FROM conversation_summaries 
+        WHERE project_id = 'outside-of-project' OR project_id IS NULL OR project_id = ''
+        ORDER BY last_modified_time DESC
+    """).fetchall()
+
+    standalone = []
+    if out_rows:
+        for cid, title, ws, mtime in out_rows:
+            seen_conv_ids.add(cid)
+            clean_title = title if title and title.strip() and not title.strip().startswith("\ufffd") else f"Диалог {cid[:8]}"
+            standalone.append({
+                "id": cid,
+                "title": clean_title,
+                "time": get_relative_time(mtime),
+                "mtime": mtime,
+                "project": ""
+            })
+
+    conn.close()
+    return projects, standalone
+
+def get_conversations_list():
+    projs, standalone = get_antigravity_data()
+    all_convs = []
+    for p in projs:
+        all_convs.extend(p["conversations"])
+    all_convs.extend(standalone)
+    all_convs.sort(key=lambda x: str(x.get("mtime", "")), reverse=True)
+    return all_convs
+
+def get_active_conv_id():
+    global CURRENT_CONV_ID, PENDING_NEW_CONV, PENDING_NEW_TIMESTAMP
+    if CURRENT_CONV_ID and CURRENT_CONV_ID != "pending_new":
+        conv_dir = BRAIN_DIR / CURRENT_CONV_ID
+        if conv_dir.exists():
+            return CURRENT_CONV_ID
+
+    if CURRENT_CONV_ID == "pending_new":
+        convs = get_conversations_list()
+        # Если в базе появился диалог, дата которого новее создания нового диалога
+        if convs:
+            try:
+                latest_mtime = float(convs[0].get("mtime", 0))
+            except Exception:
+                latest_mtime = 0
+            if latest_mtime > PENDING_NEW_TIMESTAMP:
+                CURRENT_CONV_ID = convs[0]["id"]
+                PENDING_NEW_CONV = None
+                return CURRENT_CONV_ID
+        return None
+            
+    convs = get_conversations_list()
+    if convs:
+        CURRENT_CONV_ID = convs[0]["id"]
+        return CURRENT_CONV_ID
+    return None
+
+def get_active_info():
+    global PENDING_NEW_CONV
+    active_id = get_active_conv_id()
+    if not active_id or active_id == "pending_new":
+        proj = PENDING_NEW_CONV.get("project_name", "") if PENDING_NEW_CONV else ""
+        return {"id": None, "title": "Новый диалог", "project": proj, "model": CURRENT_MODEL}
+    for c in get_conversations_list():
+        if c["id"] == active_id:
+            return {"id": active_id, "title": c["title"], "project": c.get("project", ""), "model": CURRENT_MODEL}
+    return {"id": active_id, "title": f"Диалог {active_id[:8]}", "project": "", "model": CURRENT_MODEL}
+
+def get_transcript_messages(limit=30):
+    conv_id = get_active_conv_id()
+    if not conv_id or conv_id == "pending_new":
+        return []
+    
+    log_dir = BRAIN_DIR / conv_id / ".system_generated" / "logs"
+    transcript_path = log_dir / "transcript.jsonl"
+    full_path = log_dir / "transcript_full.jsonl"
+    
+    if not transcript_path.exists():
+        return []
+
+    try:
+        with open(transcript_path, "r", encoding="utf-8", errors="ignore") as f:
+            lines = f.readlines()
+        
+        full_lines = None
+        candidates = []
+
+        # Scan backwards to get the most recent real conversational messages
+        for idx in range(len(lines) - 1, -1, -1):
+            line = lines[idx].strip()
+            if not line:
+                continue
+            try:
+                data = json.loads(line)
+                source = data.get("source", "")
+                step_type = data.get("type", "")
+                
+                if source == "USER_EXPLICIT" or step_type == "USER_INPUT":
+                    content = data.get("content", "")
+                    clean = content.replace("<USER_REQUEST>", "").replace("</USER_REQUEST>", "").strip()
+                    if "<ADDITIONAL_METADATA>" in clean:
+                        clean = clean.split("<ADDITIONAL_METADATA>")[0].strip()
+                    if clean and not clean.startswith("<SYSTEM_MESSAGE>"):
+                        candidates.append({
+                            "role": "user",
+                            "text": clean,
+                            "time": data.get("created_at", "")
+                        })
+                elif step_type == "PLANNER_RESPONSE":
+                    content = data.get("content", "")
+                    if "truncated_fields" in data and "content" in data.get("truncated_fields", []):
+                        if full_lines is None and full_path.exists():
+                            with open(full_path, "r", encoding="utf-8", errors="ignore") as ff:
+                                full_lines = ff.readlines()
+                        if full_lines and idx < len(full_lines):
+                            try:
+                                full_data = json.loads(full_lines[idx].strip())
+                                content = full_data.get("content", content)
+                            except Exception:
+                                pass
+                    if content and content.strip():
+                        candidates.append({
+                            "role": "assistant",
+                            "text": content.strip(),
+                            "time": data.get("created_at", "")
+                        })
+
+                if len(candidates) >= limit:
+                    break
+            except Exception:
+                continue
+
+        candidates.reverse()
+        return candidates
+    except Exception as e:
+        print(f"Error reading transcript: {e}")
+        return []
+
+def execute_antigravity_injection_cdp(prompt_text):
+    try:
+        port_file = Path(r"C:\Users\Shestirukiy\AppData\Roaming\Antigravity\DevToolsActivePort")
+        if not port_file.exists():
+            return False
+        port = port_file.read_text(encoding="utf-8").splitlines()[0].strip()
+        
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/json", timeout=1.5) as resp:
+            targets = json.loads(resp.read().decode("utf-8"))
+            
+        page_target = next((t for t in targets if t.get("type") == "page"), None)
+        if not page_target:
+            return False
+            
+        ws_url = page_target["webSocketDebuggerUrl"]
+        
+        import websockets
+        async def _inject():
+            async with websockets.connect(ws_url, close_timeout=3) as ws:
+                # 1. Check if agent is currently busy
+                js_check = """
+                (() => {
+                    const cancel = document.querySelector('button[aria-label*="Cancel"], button[aria-label*="Отмена"]');
+                    if (cancel) return { busy: true };
+                    
+                    const ed = document.querySelector('div[contenteditable="true"][role="combobox"]');
+                    if (!ed) return { busy: true, error: "no_editor" };
+                    
+                    // Focus editor and select all contents
+                    ed.focus();
+                    const sel = window.getSelection();
+                    const range = document.createRange();
+                    range.selectNodeContents(ed);
+                    range.collapse(false);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    return { busy: false };
+                })()
+                """
+                await ws.send(json.dumps({
+                    "id": 1,
+                    "method": "Runtime.evaluate",
+                    "params": {"expression": js_check, "returnByValue": True}
+                }))
+                r1 = json.loads(await ws.recv())
+                val1 = r1.get("result", {}).get("result", {}).get("value", {})
+                if val1.get("busy"):
+                    return False
+
+                # 2. Type text using native CDP Input.insertText
+                await ws.send(json.dumps({
+                    "id": 2,
+                    "method": "Input.insertText",
+                    "params": {"text": prompt_text}
+                }))
+                await ws.recv()
+
+                # Small delay to allow framework to update Send button state
+                await asyncio.sleep(0.15)
+
+                # 3. Submit via Send button click or Enter key
+                js_submit = """
+                (() => {
+                    const card = document.querySelector('.bg-card');
+                    const sendBtn = card ? card.querySelector('button[aria-label*="Send message"], button[aria-label*="Отправить"]') : null;
+                    if (sendBtn && !sendBtn.disabled) {
+                        sendBtn.click();
+                        return { clicked: true };
+                    }
+                    return { clicked: false };
+                })()
+                """
+                await ws.send(json.dumps({
+                    "id": 3,
+                    "method": "Runtime.evaluate",
+                    "params": {"expression": js_submit, "returnByValue": True}
+                }))
+                r3 = json.loads(await ws.recv())
+                val3 = r3.get("result", {}).get("result", {}).get("value", {})
+
+                # If button was not clicked, dispatch Enter key via CDP Input domain
+                if not val3.get("clicked"):
+                    await ws.send(json.dumps({
+                        "id": 4,
+                        "method": "Input.dispatchKeyEvent",
+                        "params": {
+                            "type": "rawKeyDown",
+                            "windowsVirtualKeyCode": 13,
+                            "unmodifiedText": "\\r",
+                            "text": "\\r",
+                            "key": "Enter",
+                            "code": "Enter"
+                        }
+                    }))
+                    await ws.recv()
+                    await ws.send(json.dumps({
+                        "id": 5,
+                        "method": "Input.dispatchKeyEvent",
+                        "params": {
+                            "type": "keyUp",
+                            "windowsVirtualKeyCode": 13,
+                            "key": "Enter",
+                            "code": "Enter"
+                        }
+                    }))
+                    await ws.recv()
+
+                return True
+                
+        return asyncio.run(_inject())
+    except Exception as e:
+        print(f"CDP injection error: {e}")
+        return False
+
+def execute_antigravity_injection(prompt_text):
+    conv_id = get_active_conv_id()
+    if conv_id and conv_id != "pending_new":
+        scratch = BRAIN_DIR / conv_id / "scratch"
+        scratch.mkdir(exist_ok=True)
+        (scratch / "mobile_prompt.txt").write_text(prompt_text, encoding="utf-8")
+    
+    # Direct CDP injection into Chromium core
+    return execute_antigravity_injection_cdp(prompt_text)
+
+def create_antigravity_new_conversation_cdp(project_id=None):
+    try:
+        port_file = Path(r"C:\Users\Shestirukiy\AppData\Roaming\Antigravity\DevToolsActivePort")
+        if not port_file.exists():
+            return False
+        port = port_file.read_text(encoding="utf-8").splitlines()[0].strip()
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/json", timeout=1.5) as resp:
+            targets = json.loads(resp.read().decode("utf-8"))
+        page_target = next((t for t in targets if t.get("type") == "page"), None)
+        if not page_target:
+            return False
+        ws_url = page_target["webSocketDebuggerUrl"]
+
+        import websockets
+        async def _trigger():
+            async with websockets.connect(ws_url, close_timeout=3) as ws:
+                js = f"""
+                (() => {{
+                    const pid = {json.dumps(project_id or '')};
+                    if (pid && pid !== 'outside-of-project') {{
+                        const link = document.querySelector('a[href*="section=' + pid + '"]');
+                        if (link) {{
+                            link.click();
+                            return {{ status: "clicked_project_link", pid: pid }};
+                        }}
+                        if (window.__TSR_ROUTER__) {{
+                            window.__TSR_ROUTER__.navigate({{ href: '/?section=' + pid }});
+                            return {{ status: "routed_project", pid: pid }};
+                        }}
+                    }}
+                    const btn = document.querySelector('button[aria-label="New Conversation"], a[href="/"]');
+                    if (btn) {{
+                        btn.click();
+                        return {{ status: "clicked_new_conv" }};
+                    }}
+                    if (window.__TSR_ROUTER__) {{
+                        window.__TSR_ROUTER__.navigate({{ href: '/' }});
+                        return {{ status: "routed_home" }};
+                    }}
+                    return {{ status: "not_found" }};
+                }})()
+                """
+                await ws.send(json.dumps({
+                    "id": 1,
+                    "method": "Runtime.evaluate",
+                    "params": {"expression": js, "returnByValue": True}
+                }))
+                raw = await ws.recv()
+                data = json.loads(raw)
+                return data.get("result", {}).get("result", {}).get("value", {})
+
+        return asyncio.run(_trigger())
+    except Exception as e:
+        print(f"[CDP New Conv Error] {e}")
+        return False
+
+def switch_antigravity_conversation_cdp(conv_id):
+    try:
+        port_file = Path(r"C:\Users\Shestirukiy\AppData\Roaming\Antigravity\DevToolsActivePort")
+        if not port_file.exists():
+            return False
+        port = port_file.read_text(encoding="utf-8").splitlines()[0].strip()
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/json", timeout=1.5) as resp:
+            targets = json.loads(resp.read().decode("utf-8"))
+        page_target = next((t for t in targets if t.get("type") == "page"), None)
+        if not page_target:
+            return False
+        ws_url = page_target["webSocketDebuggerUrl"]
+
+        import websockets
+        async def _trigger():
+            async with websockets.connect(ws_url, close_timeout=3) as ws:
+                js = f"""
+                (() => {{
+                    const cid = {json.dumps(conv_id)};
+                    const link = document.querySelector('a[href*="/c/' + cid + '"]');
+                    if (link) {{
+                        link.click();
+                        return {{ status: "clicked_conv_link" }};
+                    }}
+                    if (window.__TSR_ROUTER__) {{
+                        window.__TSR_ROUTER__.navigate({{ href: '/c/' + cid }});
+                        return {{ status: "routed_conv" }};
+                    }}
+                    return {{ status: "not_found" }};
+                }})()
+                """
+                await ws.send(json.dumps({
+                    "id": 1,
+                    "method": "Runtime.evaluate",
+                    "params": {"expression": js, "returnByValue": True}
+                }))
+                raw = await ws.recv()
+                data = json.loads(raw)
+                return data.get("result", {}).get("result", {}).get("value", {})
+
+        return asyncio.run(_trigger())
+    except Exception as e:
+        print(f"[CDP Switch Conv Error] {e}")
+        return False
+
+def queue_worker_loop():
+    global LAST_INJECT_TIME
+    while True:
+        # Wakes up immediately upon add_to_queue via QUEUE_EVENT, or every 0.3s
+        QUEUE_EVENT.wait(timeout=0.3)
+        QUEUE_EVENT.clear()
+        
+        item_to_send = None
+        with QUEUE_LOCK:
+            if not MESSAGE_QUEUE:
+                continue
+            first = MESSAGE_QUEUE[0]
+            if first.get("status") in ("queued", "sending"):
+                # No 1.5s lag! Fast 0.1s minimum spacing for native CDP
+                if time.time() - LAST_INJECT_TIME >= 0.1:
+                    first["status"] = "sending"
+                    item_to_send = first
+
+        if item_to_send:
+            success = execute_antigravity_injection(item_to_send["prompt"])
+            if success:
+                with QUEUE_LOCK:
+                    item_to_send["status"] = "sent"
+                    item_to_send["send_time"] = time.time()
+                LAST_INJECT_TIME = time.time()
+            else:
+                # If agent is busy, return to queued state to retry
+                with QUEUE_LOCK:
+                    item_to_send["status"] = "queued"
+
+def inject_action(action_type):
+    if inject_action_cdp(action_type):
+        return True
+
+    key = "{ENTER}" if action_type == "proceed" else "{ESC}"
+    info = find_antigravity_window_info()
+    win_title = info.get("title", "").replace("'", "''")
+    win_pid = info.get("pid", 0)
+    win_hwnd = info.get("hwnd", 0)
+
+    if win_hwnd:
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+            user32.ShowWindow(win_hwnd, 9)
+            user32.SetForegroundWindow(win_hwnd)
+        except Exception:
+            pass
+
+    ps_script = f"""
+    $wshell = New-Object -ComObject WScript.Shell
+    $act = $false
+    if ('{win_title}') {{
+        $act = $wshell.AppActivate('{win_title}')
+    }}
+    if (-not $act -and {win_pid} -gt 0) {{
+        $act = $wshell.AppActivate({win_pid})
+    }}
+    if (-not $act) {{
+        $wshell.AppActivate('Antigravity')
+    }}
+    Start-Sleep -Milliseconds 150
+    $wshell.SendKeys('{key}')
+    """
+    try:
+        subprocess.Popen(["powershell", "-NoProfile", "-Command", ps_script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
+    except Exception:
+        return False
+
+HTML_PAGE = r"""<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -327,19 +940,24 @@
         .queue-item-status.sending {
             color: #388bfd;
         }
-        .btn-cancel-queue {
+        .btn-cancel-queue, .btn-edit-queue {
             background: none;
             border: none;
             color: #707070;
             cursor: pointer;
-            padding: 2px 4px;
+            padding: 2px 5px;
             border-radius: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 12px;
+            transition: color 0.15s, background 0.15s;
         }
-        .btn-cancel-queue:active { color: #f85149; }
+        .btn-edit-queue { color: #58a6ff; }
+        .btn-edit-queue:active { color: #79c0ff; background: rgba(56, 139, 253, 0.15); }
+        .btn-cancel-queue:active { color: #f85149; background: rgba(248, 81, 73, 0.15); }
+        .queue-item-text { cursor: pointer; }
+        .queue-item-text:hover { color: #ffffff; text-decoration: underline; }
 
         /* Быстрые действия */
         .quick-actions {
@@ -621,6 +1239,27 @@
             text-overflow: ellipsis;
             font-weight: 400;
         }
+        .btn-new-conv-proj {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            flex-shrink: 0;
+            margin-left: auto;
+            padding: 0;
+            transition: background 0.15s, color 0.15s, transform 0.1s;
+        }
+        .btn-new-conv-proj:hover, .btn-new-conv-proj:active {
+            background: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            transform: scale(1.08);
+        }
 
         .project-convs {
             display: none;
@@ -874,7 +1513,7 @@
     <div class="drawer-overlay" id="overlay" onclick="toggleDrawer()"></div>
     <div class="drawer" id="drawer">
         <div class="sidebar-top">
-            <button class="btn-new-conversation" onclick="quickSend('/new')">
+            <button class="btn-new-conversation" onclick="createNewProjectConv(event, '', '')">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                 <span>New Conversation</span>
             </button>
@@ -987,6 +1626,12 @@
                             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                         </svg>
                         <span class="project-name">${escapeHtml(proj.name)}</span>
+                        <button class="btn-new-conv-proj" onclick="createNewProjectConv(event, '${proj.id}', '${escapeHtml(proj.name).replace(/'/g, "\\'")}')" title="Новый диалог в ${escapeHtml(proj.name)}">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                        </button>
                     `;
 
                     const sublist = document.createElement('div');
@@ -1132,13 +1777,27 @@
                 row.className = 'queue-item';
                 const isSending = item.status === 'sending';
                 const statusLabel = isSending ? 'Отправка...' : 'В очереди';
+                const safePrompt = escapeHtml(item.prompt).replace(/'/g, "\\'");
                 row.innerHTML = `
-                    <span class="queue-item-text">${escapeHtml(item.prompt)}</span>
+                    <span class="queue-item-text" onclick="editQueueItem('${item.id}', '${safePrompt}')" title="Нажмите для редактирования">${escapeHtml(item.prompt)}</span>
                     <span class="queue-item-status ${isSending ? 'sending' : ''}">${statusLabel}</span>
+                    <button class="btn-edit-queue" onclick="editQueueItem('${item.id}', '${safePrompt}')" title="Редактировать сообщение">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    </button>
                     <button class="btn-cancel-queue" onclick="cancelQueueItem('${item.id}')" title="Отменить">✕</button>
                 `;
                 list.appendChild(row);
             });
+        }
+
+        async function editQueueItem(id, currentText) {
+            const input = document.getElementById('promptInput');
+            if (input) {
+                input.value = currentText;
+                autoGrow(input);
+                input.focus();
+            }
+            await cancelQueueItem(id);
         }
 
         async function cancelQueueItem(id) {
@@ -1153,6 +1812,52 @@
             } catch (e) {
                 console.error("Cancel queue error", e);
             }
+        }
+
+        async function createNewProjectConv(event, projId, projName) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+            try {
+                const query = projId ? ('?project_id=' + encodeURIComponent(projId) + '&project_name=' + encodeURIComponent(projName || '')) : '';
+                await fetch(API_BASE + '/api/new_conversation' + query, { method: 'POST' });
+                
+                activeConvId = null;
+                updateHeaderBreadcrumb(projName || '', 'Новый диалог');
+                toggleDrawer();
+                
+                const chat = document.getElementById('chat');
+                if (chat) {
+                    chat.innerHTML = `
+                        <div class="msg assistant">
+                            <div class="msg-role-header">Antigravity</div>
+                            <div class="markdown-body">
+                                <p>Новый диалог ${projName ? 'в проекте <b>' + escapeHtml(projName) + '</b>' : ''}. Напишите первое сообщение ниже.</p>
+                            </div>
+                        </div>
+                    `;
+                }
+                lastMsgSig = '';
+                const input = document.getElementById('promptInput');
+                if (input) {
+                    input.value = '';
+                    input.focus();
+                }
+            } catch (e) {
+                console.error("Error creating new conversation:", e);
+                alert("Ошибка создания диалога: " + e);
+            }
+        }
+
+        function appendOptimisticUserMessage(text) {
+            const chat = document.getElementById('chat');
+            if (!chat) return;
+            const div = document.createElement('div');
+            div.className = 'msg user optimistic';
+            div.innerHTML = `<div class="msg-role-header">Вы <span style="font-size: 10px; color: var(--text-dim); font-weight: normal;">(отправлено)</span></div>${escapeHtml(text)}`;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
         }
 
         function formatMarkdown(text) {
@@ -1221,6 +1926,9 @@
             input.value = '';
             input.style.height = 'auto';
 
+            // МГНОВЕННОЕ отображение сообщения на экране без задержки (0 мс)
+            appendOptimisticUserMessage(text);
+
             try {
                 const res = await fetch(API_BASE + '/api/send', {
                     method: 'POST',
@@ -1231,7 +1939,7 @@
                 if (data.queue) {
                     renderQueue(data.queue);
                 }
-                setTimeout(fetchTranscript, 300);
+                setTimeout(fetchTranscript, 120);
             } catch (e) {
                 alert('Ошибка отправки: ' + e);
             }
@@ -1312,7 +2020,7 @@
         }
 
         document.getElementById('currentModelLabel').textContent = selectedModel;
-        setInterval(fetchTranscript, 800);
+        setInterval(fetchTranscript, 450);
         fetchTranscript();
     </script>
 </body>
