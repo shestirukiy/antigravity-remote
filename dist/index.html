@@ -1218,13 +1218,6 @@
             input.value = '';
             input.style.height = 'auto';
 
-            const chat = document.getElementById('chat');
-            const div = document.createElement('div');
-            div.className = 'msg user';
-            div.innerHTML = `<div class="msg-role-header">Вы (отправка...)</div>${escapeHtml(text)}`;
-            chat.appendChild(div);
-            chat.scrollTop = chat.scrollHeight;
-
             try {
                 const res = await fetch(API_BASE + '/api/send', {
                     method: 'POST',
@@ -1235,6 +1228,7 @@
                 if (data.queue) {
                     renderQueue(data.queue);
                 }
+                setTimeout(fetchTranscript, 300);
             } catch (e) {
                 alert('Ошибка отправки: ' + e);
             }
