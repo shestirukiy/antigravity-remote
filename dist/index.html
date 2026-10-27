@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Antigravity Remote 3.7</title>
+    <title>Antigravity Remote 3.8</title>
     <style>
         :root {
             --bg-canvas: #121212;
@@ -472,13 +472,14 @@
             transition: opacity 0.25s ease;
             z-index: 100;
         }
-        .drawer-overlay.active { opacity: 1; pointer-events: auto; }
-        .sidebar {
+        .drawer-overlay.active, .drawer-overlay.open { opacity: 1; pointer-events: auto; }
+        
+        .drawer, .sidebar {
             position: fixed;
             top: 0;
             bottom: 0;
             left: 0;
-            width: 82%;
+            width: 84%;
             max-width: 320px;
             background-color: var(--sidebar-bg);
             border-right: 1px solid var(--border-subtle);
@@ -488,62 +489,114 @@
             display: flex;
             flex-direction: column;
         }
-        .sidebar.active { transform: translateX(0); }
+        .drawer.active, .drawer.open, .sidebar.active, .sidebar.open { transform: translateX(0); }
 
-        .sidebar-header {
-            height: 52px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 14px;
+        .sidebar-top {
+            padding: 12px;
             border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
-        .sidebar-title {
-            font-size: 14px;
-            font-weight: 600;
+        .btn-new-conversation {
+            background-color: #262626;
+            border: 1px solid #333333;
             color: var(--text-primary);
+            border-radius: 8px;
+            padding: 9px 12px;
+            font-size: 13.5px;
+            font-weight: 500;
             display: flex;
             align-items: center;
-            gap: 7px;
+            gap: 8px;
+            cursor: pointer;
+            width: 100%;
         }
-        .sidebar-content {
+        .btn-new-conversation:active { background-color: #303030; }
+
+        .sidebar-scrollable, .sidebar-content {
             flex: 1;
             overflow-y: auto;
-            padding: 10px 0;
+            padding: 8px 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
         }
-        .sidebar-group-title {
-            font-size: 11px;
-            color: var(--text-dim);
-            font-weight: 600;
-            padding: 8px 16px 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+
+        /* Project Accordion Groups */
+        .project-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 4px;
+        }
+        .project-row {
+            padding: 7px 8px;
+            border-radius: 6px;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-        }
-        .btn-proj-new {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
+            gap: 8px;
             cursor: pointer;
-            font-size: 15px;
-            padding: 0 4px;
+            color: #d0d0d0;
+            font-size: 13px;
+            user-select: none;
         }
+        .project-row:active { background-color: var(--surface-hover); }
+        .project-row svg.folder-icon { color: #8c8c8c; flex-shrink: 0; }
+        .project-name {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 500;
+        }
+        .btn-new-conv-proj {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            flex-shrink: 0;
+            margin-left: auto;
+            padding: 0;
+        }
+        .btn-new-conv-proj:active { background: var(--surface-hover); color: var(--text-primary); }
+
+        .project-convs {
+            display: none;
+            flex-direction: column;
+            padding-left: 14px;
+            border-left: 1px solid rgba(255, 255, 255, 0.06);
+            margin-left: 14px;
+            margin-top: 2px;
+        }
+        .project-group.expanded .project-convs {
+            display: flex;
+        }
+
         .conv-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 9px 16px;
+            padding: 7px 10px;
+            border-radius: 6px;
             color: var(--text-secondary);
-            font-size: 13.5px;
+            font-size: 13px;
             cursor: pointer;
-            border-left: 3px solid transparent;
+            margin: 1px 0;
         }
         .conv-item:active, .conv-item.active {
             background-color: var(--surface-hover);
-            color: var(--text-primary);
-            border-left-color: var(--accent-blue);
+            color: #fff;
+        }
+        .conv-item.active {
+            background-color: rgba(56, 139, 253, 0.15);
+            color: #79c0ff;
+            font-weight: 500;
         }
         .conv-item-title {
             flex: 1;
@@ -568,7 +621,7 @@
             justify-content: center;
             z-index: 200;
         }
-        .modal-overlay.active { display: flex; }
+        .modal-overlay.active, .modal-overlay.open { display: flex; }
         .modal-card {
             background: #1c1c1c;
             border: 1px solid #2d2d2d;
@@ -597,7 +650,7 @@
             font-size: 18px;
             cursor: pointer;
         }
-        .target-option {
+        .target-option, .model-option {
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -608,7 +661,8 @@
             cursor: pointer;
             margin-bottom: 6px;
         }
-        .target-option:active, .target-option.active {
+        .target-option:active, .target-option.active, .target-option.selected,
+        .model-option:active, .model-option.active, .model-option.selected {
             background: #2a2a2a;
             border-color: var(--accent-blue);
         }
@@ -617,18 +671,18 @@
             flex-direction: column;
             gap: 2px;
         }
-        .target-option-name {
+        .target-option-name, .model-opt-name {
             font-size: 13.5px;
             font-weight: 600;
             display: flex;
             align-items: center;
             gap: 6px;
         }
-        .target-option-desc {
+        .target-option-desc, .model-opt-provider {
             font-size: 11.5px;
             color: var(--text-dim);
         }
-        .target-option-badge {
+        .target-option-badge, .model-opt-badge {
             font-size: 11px;
             padding: 2px 7px;
             border-radius: 10px;
@@ -642,7 +696,7 @@
     <!-- Header -->
     <header>
         <div class="header-left">
-            <button class="btn-menu" onclick="toggleDrawer()" title="Меню">
+            <button class="btn-menu" onclick="toggleDrawer()" title="Меню проектов">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="3" y1="12" x2="21" y2="12"></line>
                     <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -719,25 +773,19 @@
         </div>
     </div>
 
-    <!-- Sidebar Drawer -->
+    <!-- Sidebar Drawer (Both drawer & sidebar classes supported for APK compatibility) -->
     <div class="drawer-overlay" id="drawerOverlay" onclick="toggleDrawer()"></div>
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-title">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polygon points="12 8 8 12 12 16 16 12 12 8"></polygon>
-                </svg>
-                <span>Antigravity Sessions</span>
-            </div>
-            <button class="btn-menu" onclick="startNewConversation()" title="Новый диалог">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+    <div class="drawer sidebar" id="drawer">
+        <div class="sidebar-top">
+            <button class="btn-new-conversation" onclick="createNewProjectConv(event, '', '')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
+                <span>Новый диалог</span>
             </button>
         </div>
-        <div class="sidebar-content" id="sidebarContent">
+        <div class="sidebar-scrollable sidebar-content" id="projectsList">
             <!-- Projects and conversations populated here -->
         </div>
     </div>
@@ -773,9 +821,12 @@
         let activeConvId = null;
         let lastMsgSig = '';
         let currentTarget = 'antigravity';
+        const openProjects = new Set();
 
-        function escapeHtml(str) {
-            return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        function escapeHtml(text) {
+            if (!text) return '';
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
         }
 
         function formatMarkdown(text) {
@@ -783,18 +834,22 @@
             let html = escapeHtml(text);
             
             // Fenced code blocks
-            html = html.replace(/```([a-zA-Z0-9_\-\+]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+            html = html.replace(/```([a-zA-Z0-9_\\-\\.]*)\\n([\\s\\S]*?)```/g, (match, lang, code) => {
                 return `<pre><code>${code.trim()}</code></pre>`;
             });
             // Inline code
             html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
             // Bold
-            html = html.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+            html = html.replace(/\\*\\*([^*]+)\\*\\*/g, '<b>$1</b>');
             // Italic
-            html = html.replace(/\*([^*]+)\*/g, '<i>$1</i>');
+            html = html.replace(/\\*([^*]+)\\*/g, '<i>$1</i>');
+            // Headers
+            html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+            html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+            html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
             // Paragraph breaks
-            html = html.replace(/\n\n+/g, '</p><p>');
-            html = '<p>' + html.replace(/\n/g, '<br>') + '</p>';
+            html = html.replace(/\\n\\n+/g, '</p><p>');
+            html = '<p>' + html.replace(/\\n/g, '<br>') + '</p>';
             return html;
         }
 
@@ -818,16 +873,29 @@
             input.style.height = 'auto';
             document.getElementById('sendBtn').classList.remove('active');
 
+            // Optimistic rendering
+            appendOptimisticUserMessage(prompt);
+
             try {
                 await fetch(API_BASE + '/api/send', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt, target: currentTarget })
                 });
-                fetchTranscript();
+                setTimeout(fetchTranscript, 120);
             } catch (e) {
                 console.error("Send error", e);
             }
+        }
+
+        function appendOptimisticUserMessage(text) {
+            const chat = document.getElementById('chat');
+            if (!chat) return;
+            const div = document.createElement('div');
+            div.className = 'msg user';
+            div.innerHTML = `<div class="msg-role-header">Вы <span style="font-size:10px;color:var(--text-dim);">(отправлено)</span></div>${escapeHtml(text)}`;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
         }
 
         function renderMessages(msgs) {
@@ -852,7 +920,6 @@
                 } else if (m.role === 'thinking') {
                     const details = document.createElement('details');
                     details.className = 'thinking-box' + (m.status === 'streaming' ? ' streaming' : '');
-                    // Open the latest thinking block by default so user sees thoughts online!
                     if (isLatest || m.status === 'streaming') {
                         details.open = true;
                     }
@@ -937,7 +1004,11 @@
 
         async function deleteQueueItem(id) {
             try {
-                await fetch(API_BASE + '/api/queue_delete?id=' + encodeURIComponent(id), { method: 'POST' });
+                await fetch(API_BASE + '/api/cancel_queue', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id })
+                });
                 fetchTranscript();
             } catch (e) {
                 console.error("Queue delete error", e);
@@ -988,72 +1059,123 @@
         }
 
         function toggleDrawer() {
-            const overlay = document.getElementById('drawerOverlay');
-            const sidebar = document.getElementById('sidebar');
-            const isActive = sidebar.classList.contains('active');
-            if (isActive) {
-                sidebar.classList.remove('active');
-                overlay.classList.remove('active');
+            const overlay = document.getElementById('drawerOverlay') || document.getElementById('overlay');
+            const drawer = document.getElementById('drawer') || document.getElementById('sidebar');
+            const isOpen = drawer.classList.contains('active') || drawer.classList.contains('open');
+            if (isOpen) {
+                drawer.classList.remove('active', 'open');
+                if (overlay) overlay.classList.remove('active', 'open');
             } else {
-                sidebar.classList.add('active');
-                overlay.classList.add('active');
-                loadSidebarData();
+                loadProjects();
+                drawer.classList.add('active', 'open');
+                if (overlay) overlay.classList.add('active', 'open');
             }
         }
 
-        async function loadSidebarData() {
+        async function loadProjects() {
             try {
-                const res = await fetch(API_BASE + '/api/conversations');
+                // Compatible with both /api/projects and /api/conversations
+                const res = await fetch(API_BASE + '/api/projects');
+                if (!res.ok) throw new Error('HTTP ' + res.status);
                 const data = await res.json();
-                const container = document.getElementById('sidebarContent');
-                container.innerHTML = '';
+                activeConvId = data.active_id;
 
-                // 1. Projects
-                (data.projects || []).forEach(p => {
-                    const groupTitle = document.createElement('div');
-                    groupTitle.className = 'sidebar-group-title';
-                    groupTitle.innerHTML = `
-                        <span>${escapeHtml(p.name)}</span>
-                        <button class="btn-proj-new" onclick="startNewConversation('${escapeHtml(p.id)}', '${escapeHtml(p.name)}')" title="Новый диалог в проекте">+</button>
+                const list = document.getElementById('projectsList') || document.getElementById('sidebarContent');
+                if (!list) return;
+                list.innerHTML = '';
+
+                (data.projects || []).forEach((proj, idx) => {
+                    const group = document.createElement('div');
+                    group.className = 'project-group';
+
+                    const hasActive = proj.conversations.some(c => c.id === activeConvId);
+                    if (hasActive || (openProjects.size === 0 && idx === 0)) {
+                        openProjects.add(proj.name);
+                    }
+                    if (openProjects.has(proj.name)) {
+                        group.classList.add('expanded');
+                    }
+
+                    const row = document.createElement('div');
+                    row.className = 'project-row';
+                    row.onclick = () => toggleProject(proj.name, group);
+                    row.innerHTML = `
+                        <svg class="folder-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        <span class="project-name">${escapeHtml(proj.name)}</span>
+                        <button class="btn-new-conv-proj" onclick="createNewProjectConv(event, '${proj.id}', '${escapeHtml(proj.name)}')" title="Новый диалог в ${escapeHtml(proj.name)}">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                        </button>
                     `;
-                    container.appendChild(groupTitle);
 
-                    (p.conversations || []).forEach(c => {
-                        const item = document.createElement('div');
-                        item.className = 'conv-item' + (c.id === activeConvId ? ' active' : '');
-                        item.innerHTML = `
+                    const sublist = document.createElement('div');
+                    sublist.className = 'project-convs';
+
+                    (proj.conversations || []).forEach(c => {
+                        const convRow = document.createElement('div');
+                        convRow.className = 'conv-item' + (c.id === activeConvId ? ' active' : '');
+                        convRow.onclick = (e) => {
+                            e.stopPropagation();
+                            switchConversation(c.id, c.title, proj.name);
+                        };
+                        convRow.innerHTML = `
                             <span class="conv-item-title">${escapeHtml(c.title)}</span>
-                            <span class="conv-item-time">${escapeHtml(c.time)}</span>
+                            <span class="conv-item-time">${c.time}</span>
                         `;
-                        item.onclick = () => switchConversation(c.id);
-                        container.appendChild(item);
+                        sublist.appendChild(convRow);
                     });
+
+                    group.appendChild(row);
+                    group.appendChild(sublist);
+                    list.appendChild(group);
                 });
 
-                // 2. Standalone
+                // Standalone conversations
                 if (data.standalone && data.standalone.length > 0) {
-                    const groupTitle = document.createElement('div');
-                    groupTitle.className = 'sidebar-group-title';
-                    groupTitle.innerHTML = `<span>Вне проектов</span>`;
-                    container.appendChild(groupTitle);
+                    const divider = document.createElement('div');
+                    divider.style.cssText = 'height: 1px; background: rgba(255, 255, 255, 0.08); margin: 8px 6px;';
+                    list.appendChild(divider);
 
                     data.standalone.forEach(c => {
-                        const item = document.createElement('div');
-                        item.className = 'conv-item' + (c.id === activeConvId ? ' active' : '');
-                        item.innerHTML = `
+                        const convRow = document.createElement('div');
+                        convRow.className = 'conv-item' + (c.id === activeConvId ? ' active' : '');
+                        convRow.onclick = (e) => {
+                            e.stopPropagation();
+                            switchConversation(c.id, c.title, '');
+                        };
+                        convRow.innerHTML = `
                             <span class="conv-item-title">${escapeHtml(c.title)}</span>
-                            <span class="conv-item-time">${escapeHtml(c.time)}</span>
+                            <span class="conv-item-time">${c.time}</span>
                         `;
-                        item.onclick = () => switchConversation(c.id);
-                        container.appendChild(item);
+                        list.appendChild(convRow);
                     });
                 }
             } catch (e) {
-                console.error("Sidebar load error", e);
+                console.error("Error loading projects", e);
+                const list = document.getElementById('projectsList') || document.getElementById('sidebarContent');
+                if (list) {
+                    list.innerHTML = '<div style="padding: 14px; color: #ff7b72; text-align: center; font-size: 12px;">Ошибка загрузки</div>';
+                }
             }
         }
 
-        async function switchConversation(id) {
+        const loadSidebarData = loadProjects;
+
+        function toggleProject(name, groupEl) {
+            if (openProjects.has(name)) {
+                openProjects.delete(name);
+                groupEl.classList.remove('expanded');
+            } else {
+                openProjects.add(name);
+                groupEl.classList.add('expanded');
+            }
+        }
+
+        async function switchConversation(id, title, projName) {
             toggleDrawer();
             try {
                 await fetch(API_BASE + '/api/switch_conversation?id=' + encodeURIComponent(id), { method: 'POST' });
@@ -1065,14 +1187,21 @@
             }
         }
 
-        async function startNewConversation(projId, projName) {
+        async function createNewProjectConv(event, projId, projName) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
             toggleDrawer();
             try {
-                await fetch(API_BASE + '/api/new_conversation', {
+                const query = projId ? ('?project_id=' + encodeURIComponent(projId) + '&project_name=' + encodeURIComponent(projName || '')) : '';
+                await fetch(API_BASE + '/api/new_conversation' + query, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ project_id: projId, project_name: projName })
                 });
+                activeConvId = null;
+                updateHeaderBreadcrumb(projName || '', 'Новый диалог');
                 lastMsgSig = '';
                 fetchTranscript();
             } catch (e) {
@@ -1090,7 +1219,7 @@
 
                 (data.targets || []).forEach(t => {
                     const div = document.createElement('div');
-                    div.className = 'target-option' + (t.id === data.active ? ' active' : '');
+                    div.className = 'target-option' + (t.id === data.active ? ' active selected' : '');
                     div.innerHTML = `
                         <div class="target-option-info">
                             <span class="target-option-name">${t.icon} ${escapeHtml(t.name)}</span>
@@ -1102,7 +1231,7 @@
                     list.appendChild(div);
                 });
 
-                document.getElementById('targetModal').classList.add('active');
+                document.getElementById('targetModal').classList.add('active', 'open');
             } catch (e) {
                 console.error(e);
             }
@@ -1110,7 +1239,7 @@
 
         function closeTargetModal(e) {
             if (e && e.target !== document.getElementById('targetModal')) return;
-            document.getElementById('targetModal').classList.remove('active');
+            document.getElementById('targetModal').classList.remove('active', 'open');
         }
 
         async function selectAiTarget(targetId) {
@@ -1150,12 +1279,13 @@
             try {
                 const res = await fetch(API_BASE + '/api/models');
                 const data = await res.json();
-                const list = document.getElementById('modelOptionsList');
+                const list = document.getElementById('modelOptionsList') || document.getElementById('modelsList');
+                if (!list) return;
                 list.innerHTML = '';
 
                 (data.models || []).forEach(m => {
                     const div = document.createElement('div');
-                    div.className = 'target-option' + (m.name === data.current ? ' active' : '');
+                    div.className = 'model-option' + (m.name === data.current ? ' active selected' : '');
                     div.innerHTML = `
                         <div class="target-option-info">
                             <span class="target-option-name">${m.badge} ${escapeHtml(m.name)}</span>
@@ -1166,7 +1296,7 @@
                     list.appendChild(div);
                 });
 
-                document.getElementById('modelModal').classList.add('active');
+                document.getElementById('modelModal').classList.add('active', 'open');
             } catch (e) {
                 console.error(e);
             }
@@ -1174,14 +1304,19 @@
 
         function closeModelModal(e) {
             if (e && e.target !== document.getElementById('modelModal')) return;
-            document.getElementById('modelModal').classList.remove('active');
+            document.getElementById('modelModal').classList.remove('active', 'open');
         }
 
         async function selectModel(name) {
             closeModelModal();
             try {
-                await fetch(API_BASE + '/api/set_model?model=' + encodeURIComponent(name), { method: 'POST' });
-                document.getElementById('currentModelName').textContent = name;
+                await fetch(API_BASE + '/api/set_model?model=' + encodeURIComponent(name), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: name })
+                });
+                const el = document.getElementById('currentModelName') || document.getElementById('currentModelLabel');
+                if (el) el.textContent = name;
             } catch (e) {
                 console.error(e);
             }
@@ -1189,12 +1324,16 @@
 
         function manualRefresh() {
             const btn = document.getElementById('refreshBtn');
-            btn.style.transform = 'rotate(360deg)';
-            btn.style.transition = 'transform 0.5s ease';
-            fetchTranscript().finally(() => {
+            if (btn) {
+                btn.style.transform = 'rotate(360deg)';
+                btn.style.transition = 'transform 0.5s ease';
+            }
+            Promise.all([fetchTranscript(), loadProjects()]).finally(() => {
                 setTimeout(() => {
-                    btn.style.transform = 'none';
-                    btn.style.transition = 'none';
+                    if (btn) {
+                        btn.style.transform = 'none';
+                        btn.style.transition = 'none';
+                    }
                 }, 500);
             });
         }
